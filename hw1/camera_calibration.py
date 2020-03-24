@@ -52,14 +52,14 @@ for idx, fname in enumerate(images):
 #                        3.Find out the extrensics matrix of each images.                             #
 #######################################################################################################
 print('Camera calibration...')
-img_size = (img.shape[1], img.shape[0])
+# img_size = (img.shape[1], img.shape[0])
 # You need to comment these functions and write your calibration function from scratch.
 # Notice that rvecs is rotation vector, not the rotation matrix, and tvecs is translation vector.
 # In practice, you'll derive extrinsics matrixes directly. The shape must be [pts_num,3,4], and use them to plot.
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size,None,None)
-Vr = np.array(rvecs)
-Tr = np.array(tvecs)
-extrinsics = np.concatenate((Vr, Tr), axis=1).reshape(-1,6)
+# ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, img_size,None,None)
+# Vr = np.array(rvecs)
+# Tr = np.array(tvecs)
+# extrinsics = np.concatenate((Vr, Tr), axis=1).reshape(-1,6)
 """
 Write your code here
 """
@@ -107,7 +107,7 @@ for i in range(np.shape(objpoints)[0]):
 
 V = np.array(V)
 print(np.shape(V))
-u, s, vh = np.linalg.svd(V.dot(V))
+u, s, vh = np.linalg.svd(V.T.dot(V))
 # print("u, s, vh")
 print(u)
 print(s)
