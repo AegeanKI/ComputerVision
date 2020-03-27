@@ -89,6 +89,7 @@ for i, fname in enumerate(images):
     u, s, vh = np.linalg.svd(P)
     print("P 's singular",s)
     H = vh[np.argmin(s)]
+    H = H / H[-1]
     H = np.array([[H[0], H[1], H[2]],
                   [H[3], H[4], H[5]],
                   [H[6], H[7], H[8]]])
@@ -121,43 +122,44 @@ print("vh=",vh)
 b = vh[np.argmin(s)]
 print("[SVD] b=",b)
 
-w,v = np.linalg.eig(np.dot(V.T,V))
-print("w,v")
-print(w,"\n",v)
+# w,v = np.linalg.eig(np.dot(V.T,V))
+# print("w,v")
+# print(w,"\n",v)
 
 B = np.array([[b[0], b[1], b[3]],
             [b[1], b[2], b[4]],
             [b[3], b[4], b[5]]])
+B = B/B[-1,-1]
 
-# try:
-#     L = np.linalg.cholesky(B)
-#     print("B can do cholesky")
-#     # print(L)
-# except:
-#     w, v = np.linalg.eig(B)
-#     print(w)
-#     print("B failed")
-#     # L = np.linalg.cholesky(-1*B)
-#     raise SystemExit(0)
+try:
+    L = np.linalg.cholesky(B)
+    print("B can do cholesky")
+    # print(L)
+except:
+    w, v = np.linalg.eig(B)
+    print(w)
+    print("B failed")
+    # L = np.linalg.cholesky(-1*B)
+    raise SystemExit(0)
 
-# # B = K.inv.T * K.inv
-# # B = L * L.H
-# # H = L.inv
-# K = np.linalg.inv(L.T)
-# print("B=",B,"K=",K)
-# print("K.inv.T dot K.inv = ",np.dot(np.linalg.inv(K.T),np.linalg.inv(K)))
-# # K[0,1] = 0.0
+# B = K.inv.T * K.inv
+# B = L * L.H
+# H = L.inv
+K = np.linalg.inv(L.T)
+print("B=",B,"K=",K)
+print("K.inv.T dot K.inv = ",np.dot(np.linalg.inv(K.T),np.linalg.inv(K)))
+# K[0,1] = 0.0
 # K = K/K[2,2]
 
-# Use Zhang's method instead of cholesky
-# A = [[alpha, gama, u0],[0,beta,v0],[0,0,1]]
-v0 = (B[0][1]*B[0][2] - B[0][0]*B[1][2])/(B[0][0]*B[1][1]-B[0][1]*B[0][1])
-landa = B[2][2] - (B[0][2]**2 + v0*(B[0][1]*B[0][2] - B[0][0]*B[1][2]))/B[0][0]
-alpha = np.sqrt(landa/B[0][0])
-beta = np.sqrt((landa*B[0][0])/(B[0][0]*B[1][1] - B[0][1]*B[0][1]))
-gama = -(B[0][1]*alpha*alpha*beta)/landa
-u0 = (gama*v0)/beta - (B[0][2]*alpha*alpha)/landa
-K = np.array([[alpha,gama,u0],[0,beta,v0],[0,0,1]])
+# # Use Zhang's method instead of cholesky
+# # A = [[alpha, gama, u0],[0,beta,v0],[0,0,1]]
+# v0 = (B[0][1]*B[0][2] - B[0][0]*B[1][2])/(B[0][0]*B[1][1]-B[0][1]*B[0][1])
+# landa = B[2][2] - (B[0][2]**2 + v0*(B[0][1]*B[0][2] - B[0][0]*B[1][2]))/B[0][0]
+# alpha = np.sqrt(landa/B[0][0])
+# beta = np.sqrt((landa*B[0][0])/(B[0][0]*B[1][1] - B[0][1]*B[0][1]))
+# gama = -(B[0][1]*alpha*alpha*beta)/landa
+# u0 = (gama*v0)/beta - (B[0][2]*alpha*alpha)/landa
+# K = np.array([[alpha,gama,u0],[0,beta,v0],[0,0,1]])
 print("K=",K)
 mtx = K
 Kinv = np.linalg.inv(K)
@@ -176,6 +178,7 @@ for i, fname in enumerate(images):
     print(P.shape)
     u, s, vh = np.linalg.svd(P)
     H = vh[np.argmin(s)]
+    H = H/H[-1]
     # H = np.array([[H[0], H[1], H[2]],
     #               [H[3], H[4], H[5]],
     #               [H[6], H[7], H[8]]])
@@ -222,11 +225,12 @@ board_width = 8
 board_height = 6
 square_size = 1
 # display
+mode = False
 # True -> fix board, moving cameras
 # False -> fix camera, moving boards
 min_values, max_values = show.draw_camera_boards(ax, camera_matrix, cam_width, cam_height,
                                                 scale_focal, extrinsics, board_width,
-                                                board_height, square_size, False)
+                                                board_height, square_size, mode)
 
 X_min = min_values[0]
 X_max = max_values[0]
@@ -240,7 +244,7 @@ mid_x = (X_max+X_min) * 0.5
 mid_y = (Y_max+Y_min) * 0.5
 mid_z = (Z_max+Z_min) * 0.5
 ax.set_xlim(mid_x - max_range, mid_x + max_range)
-ax.set_ylim(mid_y - max_range, 0)
+ax.set_ylim(mid_y - max_range, mid_y + max_range)
 ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
 ax.set_xlabel('x')
@@ -293,7 +297,7 @@ square_size = 1
 # False -> fix camera, moving boards
 min_values, max_values = show.draw_camera_boards(ax, camera_matrix, cam_width, cam_height,
                                                 scale_focal, extrinsics, board_width,
-                                                board_height, square_size, False)
+                                                board_height, square_size, mode)
 
 X_min = min_values[0]
 X_max = max_values[0]
