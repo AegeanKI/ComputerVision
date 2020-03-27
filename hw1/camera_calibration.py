@@ -77,6 +77,7 @@ def get_v(Hi, Hj):
 
 V = []
 # for i in range(np.shape(objpoints)[0]):
+H_list = []
 for i, fname in enumerate(images):
     print(i)
     P = []
@@ -86,9 +87,11 @@ for i, fname in enumerate(images):
     print(P.shape)
     u, s, vh = np.linalg.svd(P)
     H = vh[-1]
+    H = H / H[-1]
     H = np.array([[H[0], H[1], H[2]],
                   [H[3], H[4], H[5]],
                   [H[6], H[7], H[8]]])
+    H_list.append(H)
     print(H)
     v12 = get_v(H[:,0], H[:,1])
     v11 = get_v(H[:,0], H[:,0])
@@ -102,26 +105,53 @@ print(V)
 u, s, vh = np.linalg.svd(V)
 # print(V.T.dot(V))
 # u, s, vh = np.linalg.svd(V.T.dot(V))
-print("u, s, vh")
+print("s, vh")
 print(s)
 print(vh)
 b = vh[-1]
+print("b")
 print(b)
 B = np.array([[b[0], b[1], b[3]],
             [b[1], b[2], b[4]],
             [b[3], b[4], b[5]]])
-try:
-    L = np.linalg.cholesky(B)
-    print("B can do cholesky")
-except:
-    w, v = np.linalg.eig(B)
-    print(w)
-    print("B failed")
-raise SystemExit(0)
+
+B = B / B[-1,-1]
+
+w, v = np.linalg.eig(B)
+print("b eigenvalue")
+print(w)
+K_inv_T = np.linalg.cholesky(B)
+K = np.linalg.inv(K_inv_T).T
+K_inv = K_inv_T.T
+print("K")
+print(K)
 
 
+extrinsics = []
+for i, fname in enumerate(images):
+    h1 = H_list[i][:,0]
+    h2 = H_list[i][:,1]
+    h3 = H_list[i][:,2]
+    lam = 1 / np.linalg.norm(K_inv.dot(h1))
+    r1 = lam * K_inv.dot(h1)
+    r2 = lam * K_inv.dot(h2)
+    r3 = np.cross(r1, r2)
+    t = lam * K_inv.dot(h3)
+    extrinsic = np.zeros((3, 4), np.float32)
+    extrinsic[:,0] = r1
+    extrinsic[:,1] = r2
+    extrinsic[:,2] = r3
+    extrinsic[:,3] = t
+    print(r1)
+    print(r2)
+    print(r3)
+    print(t)
+    print(extrinsic)
+    extrinsics.append(extrinsic)
 
-
+# raise SystemExit(0)
+extrinsics = np.array(extrinsics)
+mtx = K
 
 # show the camera extrinsics
 print('Show the camera extrinsics')
