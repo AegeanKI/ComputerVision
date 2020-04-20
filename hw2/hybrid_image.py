@@ -35,7 +35,7 @@ def make_filter(row, col, sigma, is_high, gaussian):
             if gaussian:
                 val = np.exp(-1 * distance / (2 * (sigma**2)))
             else:
-                val = 1 if distance > sigma**2 else 0
+                val = 1 if distance <= sigma**2 else 0
             if is_high:
                 val = 1 - val
             res[i][j] = val
@@ -67,7 +67,7 @@ def hybrid(img_high, img_low, sigma_high, sigma_low, gaussian):
 
 
 if __name__ == "__main__":
-    i = 5
+    i = 3
     img_high = get_img(IMAGE_HIGH[i])
     img_low = get_img(IMAGE_LOW[i])
 

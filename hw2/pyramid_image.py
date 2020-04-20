@@ -1,13 +1,18 @@
 import numpy as np
-from numpy.fft import fft2, ifft2, fftshift, ifftshift 
+from numpy.fft import fft2, ifft2, fftshift, ifftshift
 import matplotlib.pyplot as plt
 from matplotlib.image import imread
 
 IMAGE_DIR = 'hw2_data/task1and2_hybrid_pyramid/'
-IMAGE_HIGH = ['0_Afghan_girl_after.jpg', '1_bicycle.bmp','2_bird.bmp', '3_cat.bmp',
-              '4_einstein.bmp', '5_fish.bmp', '6_makeup_after.jpg']
-IMAGE_LOW = ['0_Afghan_girl_before.jpg', '1_motorcycle.bmp', '2_plane.bmp', '3_dog.bmp',
-             '4_marilyn.bmp', '5_submarine.bmp', '6_makeup_before.jpg']
+IMAGE_HIGH = [
+    '0_Afghan_girl_after.jpg', '1_bicycle.bmp', '2_bird.bmp', '3_cat.bmp',
+    '4_einstein.bmp', '5_fish.bmp', '6_makeup_after.jpg'
+]
+IMAGE_LOW = [
+    '0_Afghan_girl_before.jpg', '1_motorcycle.bmp', '2_plane.bmp', '3_dog.bmp',
+    '4_marilyn.bmp', '5_submarine.bmp', '6_makeup_before.jpg'
+]
+
 
 def get_img(img_name):
     img_rgb = imread(IMAGE_DIR + img_name).astype('int')
@@ -26,11 +31,11 @@ def make_filter(row, col, sigma, is_high, gaussian):
     res = np.zeros((row, col))
     for i in range(row):
         for j in range(col):
-            distance = (i - row // 2) ** 2 + (j - col // 2) ** 2
+            distance = (i - row // 2)**2 + (j - col // 2)**2
             if gaussian:
-                val = np.exp(-1 * distance / (2 * (sigma ** 2)))
+                val = np.exp(-1 * distance / (2 * (sigma**2)))
             else:
-                val = 1 if distance > sigma ** 2 else 0
+                val = 1 if distance <= sigma**2 else 0
             if is_high:
                 val = 1 - val
             res[i][j] = val
@@ -91,7 +96,7 @@ if __name__ == "__main__":
     # plt.imshow(img_pyramid)
 
 #     plt.show()
-    # plt.draw()
-    # plt.pause(1)
-    # input("<hit Enter to close>")
-    # plt.close(plt.figure())
+# plt.draw()
+# plt.pause(1)
+# input("<hit Enter to close>")
+# plt.close(plt.figure())
