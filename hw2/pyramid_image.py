@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 from numpy.fft import fft2, ifft2, fftshift, ifftshift
 import matplotlib.pyplot as plt
 from matplotlib.image import imread
@@ -19,11 +20,34 @@ def get_img(img_name):
     return img_rgb
 
 
-def plt_valid_show(img):
+def plt_valid_show(img, i, type, input_idx):
     img_copy = np.array(img)
     img_copy[img_copy < 0] = 0
     img_copy[img_copy > 255] = 255
+    if type == 'smooth':
+        plt.title('Smooth Image ({})'.format(i))
+    elif type == 'subsample':
+        plt.title('Subsample ({})'.format(i))
+    elif type == 'laplacian':
+        plt.title('Laplacian Image ({})'.format(i))
     plt.imshow(img_copy)
+    save_name = 'pyramid_{}/'.format(input_idx) + type + '{}.jpg'.format(i)
+    plt.savefig(save_name)
+    plt.show()
+
+
+def plt_magnitude_spectrum(img, i, type, input_idx):
+    fshift = fftshift(fft2((img[:, :, 0] + img[:, :, 1] + img[:, :, 2]) / 3))
+    magnitude_spectrum = 20 * np.log(np.abs(fshift))
+
+    if type == 'smooth_spectrum':
+        plt.title('Magnitude Spectrum (Smooth_{})'.format(i))
+    elif type == 'laplacian_spectrum':
+        plt.title('Magnitude Spectrum (Laplacian_{})'.format(i))
+    plt.imshow(magnitude_spectrum)
+    plt.xticks([]), plt.yticks([])
+    save_name = 'pyramid_{}/'.format(input_idx) + type + '{}.jpg'.format(i)
+    plt.savefig(save_name)
     plt.show()
 
 
@@ -44,6 +68,8 @@ def make_filter(row, col, sigma, is_high, gaussian):
 
 def filt(img, freq_pass_func):
     img_freq = fftshift(fft2(img))
+    # magnitude_spectrum = 20 * np.log(np.abs(img_freq))
+    # plt_valid_show(magnitude_spectrum, i, 'spectrum')
     img_freq_filted = img_freq * freq_pass_func
     img_filted = ifft2(ifftshift(img_freq_filted)).real
     return img_filted
@@ -72,7 +98,7 @@ def sample(img, down):
     return img_sampled
 
 
-def pyramid(img, layers):
+def pyramid(img, layers, input_idx):
     for i in range(layers):
         smooth_img = freq_filter(img, 24, gaussian=True, is_high=False)
         subsample = sample(smooth_img, down=True)
@@ -82,21 +108,17 @@ def pyramid(img, layers):
         laplacian_img = img - upsample[:row, :col]
         img = subsample
 
-        plt_valid_show(smooth_img)
-        plt_valid_show(subsample)
-        plt_valid_show(laplacian_img)
+        plt_valid_show(smooth_img, i, 'smooth', input_idx)
+        plt_valid_show(subsample, i, 'subsample', input_idx)
+        plt_valid_show(laplacian_img, i, 'laplacian', input_idx)
+        plt_magnitude_spectrum(img, i, 'smooth_spectrum', input_idx)
+        plt_magnitude_spectrum(laplacian_img, i, 'laplacian_spectrum',
+                               input_idx)
 
 
 if __name__ == "__main__":
-    i = 5
+    i = 0
     img_high = get_img(IMAGE_HIGH[i])
     img_low = get_img(IMAGE_LOW[i])
 
-    img_pyramid = pyramid(img_low, 3)
-    # plt.imshow(img_pyramid)
-
-#     plt.show()
-# plt.draw()
-# plt.pause(1)
-# input("<hit Enter to close>")
-# plt.close(plt.figure())
+    pyramid(img_low, 5, i)
