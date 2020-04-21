@@ -40,8 +40,8 @@ def plt_magnitude_spectrum(img, i, type, input_idx):
     fshift = fftshift(fft2((img[:, :, 0] + img[:, :, 1] + img[:, :, 2]) / 3))
     magnitude_spectrum = 20 * np.log(np.abs(fshift))
 
-    if type == 'smooth_spectrum':
-        plt.title('Magnitude Spectrum (Smooth_{})'.format(i))
+    if type == 'subsample_spectrum':
+        plt.title('Magnitude Spectrum (Subsample_{})'.format(i))
     elif type == 'laplacian_spectrum':
         plt.title('Magnitude Spectrum (Laplacian_{})'.format(i))
     plt.imshow(magnitude_spectrum)
@@ -108,16 +108,16 @@ def pyramid(img, layers, input_idx):
         laplacian_img = img - upsample[:row, :col]
         img = subsample
 
-        plt_valid_show(smooth_img, i, 'smooth', input_idx)
-        plt_valid_show(subsample, i, 'subsample', input_idx)
-        plt_valid_show(laplacian_img, i, 'laplacian', input_idx)
-        plt_magnitude_spectrum(img, i, 'smooth_spectrum', input_idx)
+        # plt_valid_show(smooth_img, i, 'smooth', input_idx)
+        # plt_valid_show(subsample, i, 'subsample', input_idx)
+        # plt_valid_show(laplacian_img, i, 'laplacian', input_idx)
+        plt_magnitude_spectrum(img, i, 'subsample_spectrum', input_idx)
         plt_magnitude_spectrum(laplacian_img, i, 'laplacian_spectrum',
                                input_idx)
 
 
 if __name__ == "__main__":
-    i = 0
+    i = 1
     img_high = get_img(IMAGE_HIGH[i])
     img_low = get_img(IMAGE_LOW[i])
 
