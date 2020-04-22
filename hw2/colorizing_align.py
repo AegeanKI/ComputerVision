@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-# from scipy.misc import imresize
+from numpy.fft import fft2, ifft2, fftshift, ifftshift
 from matplotlib.image import imread
 import gc
 
@@ -16,6 +16,7 @@ IMAGE = [
 def get_img(img_name):
     img_rgb = imread(IMAGE_DIR + img_name).astype('int')
     return img_rgb
+
 
 def make_filter(row, col, sigma, is_high, gaussian):
     res = np.zeros((row, col))
@@ -71,7 +72,8 @@ def pyramid(img, layers):
         col = img.shape[1]
         laplacian_img = img - upsample[:row, :col]
         img = subsample
-    return img 
+    return img
+
 
 def ncc(a, b):
     a = a - a.mean(axis=0)
@@ -85,7 +87,7 @@ def nccAlign(a, b, t):
     jvalue = np.linspace(-t, t, 2 * t, dtype=int)
     for i in ivalue:
         for j in jvalue:
-            nccDiff = ncc(a[:-i,:-j], np.roll(b, [i, j], axis=(0, 1)))
+            nccDiff = ncc(a[:-i, :-j], np.roll(b, [i, j], axis=(0, 1)))
             if nccDiff > min_ncc:
                 min_ncc = nccDiff
                 output = [i, j]
@@ -140,8 +142,9 @@ def coloring(img, imname):
     # tifffile.imsave('001047u.jpg', coloured)
     return coloured
 
+
 def ssd(a, b):
-    return np.sum(np.sum((a-b)**2))
+    return np.sum(np.sum((a - b)**2))
 
 
 def ssdAlign(a, b, t):
@@ -163,22 +166,24 @@ def coloring_ssd(img, imname):
     img = np.asarray(img)
 
     w, h = img.shape
-    print(w,h)
+    print(w, h)
     height = int(w / 3)
     blue = img[0:height, :]
     green = img[height:2 * height, :]
     red = img[2 * height:3 * height, :]
-    window = h//5
-    print("window=",window)
-    blue_w =  img[height//2:height//2 + window, h//2:h//2 + window]
-    green_w =  img[height//2 + height:height//2 + height + window, h//2:h//2 + window]
-    red_w =  img[height//2 + height*2:height//2 + height*2 + window, h//2:h//2 + window]
-    print(blue_w.shape,green_w.shape,red_w.shape)
+    window = h // 5
+    print("window=", window)
+    blue_w = img[height // 2:height // 2 + window, h // 2:h // 2 + window]
+    green_w = img[height // 2 + height:height // 2 + height +
+                  window, h // 2:h // 2 + window]
+    red_w = img[height // 2 + height * 2:height // 2 + height * 2 +
+                window, h // 2:h // 2 + window]
+    print(blue_w.shape, green_w.shape, red_w.shape)
 
-    # alignGtoB = ssdAlign(blue, green, 40)
-    alignGtoB = ssdAlign(blue_w, green_w, 150)
-    # alignRtoB = ssdAlign(blue, red, 40)
-    alignRtoB = ssdAlign(blue_w, red_w, 150)
+    alignGtoB = ssdAlign(blue, green, 40)
+    # alignGtoB = ssdAlign(blue_w, green_w, 100)
+    alignRtoB = ssdAlign(blue, red, 40)
+    # alignRtoB = ssdAlign(blue_w, red_w, 100)
     print(alignGtoB, alignRtoB)
     # g = np.roll(green, [alignGtoB[0] * 10, alignGtoB[1] * 10], axis=(0, 1))
     # r = np.roll(red, [alignRtoB[0] * 10, alignRtoB[1] * 10], axis=(0, 1))
@@ -199,7 +204,7 @@ if __name__ == "__main__":
     '''
     low_resolution_idx = [0, 5, 6, 9]
     high_resolution_idx = [1, 2, 3, 4, 7, 8]
-    
+
     # for i in low_resolution_idx:
     #     img = get_img(IMAGE[i])
     #     # img = get_img(inputimg)
@@ -219,9 +224,10 @@ if __name__ == "__main__":
     #     plt.show()
     # # garbage collecter
     # # gc.collect()
-    for i in high_resolution_idx:
+    for i in low_resolution_idx:
         img = get_img(IMAGE[i])
-        img = img // 2**8
+        if np.amax(img) > 255:
+            img = img // 2**8
         # print(img)
         # plt.imshow(img)
         # plt.show()
