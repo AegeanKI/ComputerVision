@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import random
 
 DATA_DIR = 'data/'
-IMAGES = [["1.jpg", "2.jpg"], ["hill1.JPG", "hill2.JPG"], ["S1.jpg", "S2.jpg"]]
+IMAGES = [["2.jpg", "1.jpg"], ["hill2.JPG", "hill1.JPG"], ["S2.jpg", "S1.jpg"]]
 GOOD_MATCH_K = 2
 GOOD_DISTANCE_RATIO = 0.3
 RANSAC_THRESHOLD = 0.6
@@ -81,9 +81,7 @@ def RANSAC_homography(match_points_0, match_points_1):
 
 def warp(img_0, img_1, H):
     result = cv2.warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
-#     result[0:img_1.shape[0], 0:img_1.shape[1]] = img_1
-    plt.imshow(result)
-    plt.show()
+    result[0:img_1.shape[0], 0:img_1.shape[1]] = img_1
     return result
 
 def get_img(img_name):
@@ -110,11 +108,9 @@ if __name__ == "__main__":
 #         print(h)
 #         img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, np.array(inliers), flags=2)
         img = warp(img_0, img_1, h)
-#         plt.imshow(img)
-#         plt.show()
+        plt.imshow(img)
+        plt.show()
 
-        break
 
-#         H = homomat(points_in_img1, points_in_img2)
 
 
