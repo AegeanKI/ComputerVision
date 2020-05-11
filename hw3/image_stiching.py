@@ -87,6 +87,10 @@ def warp(img_0, img_1, H):
 def get_img(img_name):
     return cv2.imread(DATA_DIR + img_name)
 
+def cv2_img_show(img):
+    cv2.imshow("img", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
@@ -99,17 +103,18 @@ if __name__ == "__main__":
 
         good_matches, good_matches_for_img_show = find_good_matches(des_0, des_1)
 #         img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, None, flags=2)
-#         plt.imshow(img)
-#         plt.show()
+#         cv2_img_show(img)
 
         match_points_0 = np.float32([kp_0[m.queryIdx].pt for m in good_matches]).reshape(-1, 2) 
         match_points_1 = np.float32([kp_1[m.trainIdx].pt for m in good_matches]).reshape(-1, 2)
+
         h, inliers = RANSAC_homography(match_points_0, match_points_1)
-#         print(h)
 #         img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, np.array(inliers), flags=2)
+#         cv2_img_show(img)
         img = warp(img_0, img_1, h)
-        plt.imshow(img)
-        plt.show()
+        cv2_img_show(img)
+
+#         break
 
 
 
