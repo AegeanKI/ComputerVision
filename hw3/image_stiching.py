@@ -5,7 +5,7 @@ import random
 from scipy.ndimage import geometric_transform
 
 DATA_DIR = 'data/'
-IMAGES = [["2.jpg", "1.jpg"], ["hill2.JPG", "hill1.JPG"], ["S2.jpg", "S1.jpg"]]
+IMAGES = [["2.jpg", "1.jpg"], ["hill2.JPG", "hill1.JPG"], ["S2.jpg", "S1.jpg"], ["my1.jpg", "my2.jpg"]]
 GOOD_MATCH_K = 2
 GOOD_DISTANCE_RATIO = 0.3
 RANSAC_THRESHOLD = 0.6
@@ -120,8 +120,8 @@ if __name__ == "__main__":
         kp_1, des_1 = find_img_keypoint(img_1)
 
         good_matches, good_matches_for_img_show = find_good_matches(des_0, des_1)
-#         img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, None, flags=2)
-#         cv2_img_show(img)
+        img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, None, flags=2)
+        cv2_img_show(img)
 
         match_points_0 = np.float32([kp_0[m.queryIdx].pt for m in good_matches]).reshape(-1, 2) 
         match_points_1 = np.float32([kp_1[m.trainIdx].pt for m in good_matches]).reshape(-1, 2)
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         img = warp(img_0, img_1, h)
         # img = warp(img_1, img_0, h)
         cv2_img_show(img)
-        exit(0)
+#         exit(0)
 
 #         break
     # cv2.waitKey(0)
