@@ -119,7 +119,7 @@ def warpPerspective(img, H, dsize):
         # print('posX: ', posX)
         # print('posY: ', posY)
         if x1 == imArr.shape[0]-1 or y1 == imArr.shape[1]-1:
-            print('wowowwiowjfio!!!!')
+            # print('wowowwiowjfio!!!!')
             return imArr[x1, y1, :]
 
         for channel in range(imArr.shape[2]):
