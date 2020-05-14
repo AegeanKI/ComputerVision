@@ -95,19 +95,63 @@ def cv2_img_show(img):
     cv2.destroyAllWindows()
 
 def warpPerspective(img, H, dsize):
+
+    """ Bilinear interpolation """
+    def GetBilinearPixel(imArr, posX, posY):
+        out = []
+        '''
+        let R1 = (x,y1), R2 = (x,y2)
+        x direction:
+            f(R1) = [(x2-x)/(x2-x1)]f(Q11) + [(x-x1)/(x2-x1)f(Q21)]
+            f(R2) = [(x2-x)/(x2-x1)]f(Q12) + [(x-x1)/(x2-x1)f(Q22)]
+        y direction:
+            f(P) = [(y2-y)/(y2-y1)]f(R1) + [(y-y1)/(y2-y1)]f(R2)
+
+        Q11 = [x1,y1] # left-bottom, (x1,y1)
+        Q12 = [x1,y2] # left-upper, (x1,y2)
+        Q22 = [x2,y1] # right-upper, (x2,y1)
+        Q21 = [x2,y2] # right-bottom, (x2,y2)
+        '''
+        x1 = int(posX)
+        x2 = int(min(x1+1,imArr.shape[0]-1))
+        y1 = int(posY)
+        y2 = int(min(y1+1,imArr.shape[1]-1))
+        # print('posX: ', posX)
+        # print('posY: ', posY)
+        if x1 == imArr.shape[0]-1 or y1 == imArr.shape[1]-1:
+            print('wowowwiowjfio!!!!')
+            return imArr[x1, y1, :]
+
+        for channel in range(imArr.shape[2]):
+            # x direction  
+            f_R1 = ((x2-posX)/(x2-x1))*imArr[x1,y1,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y2,channel]
+            f_R2 = ((x2-posX)/(x2-x1))*imArr[x1,y2,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y1,channel]
+            print('f(R1): ', f_R1)
+            print('f(R2): ', f_R2)
+            # y direction
+            f_P = ((y2-posY)/(y2-y1))*f_R1 + ((posY-y1)/(y2-y1))*f_R2
+            print(f_P)
+            out.append(int(f_P))
+    
+        return np.array(out)
+
     result_width, result_height = dsize
     img_width, img_height = img.shape[0], img.shape[1]
 
     img_swapped = np.swapaxes(img, 0, 1)
+    # print(img_swapped.shape)
+    # exit(0)
     H_inv = np.linalg.inv(H)
     result = np.zeros((result_width, result_height, 3))
     for x in range(result_width):
         for y in range(result_height):
             origin_p = np.dot(H_inv, [x, y, 1])
-            x_origin, y_origin, _ = (origin_p / origin_p[2] + 0.5).astype(int)
+            # x_origin, y_origin, _ = (origin_p / origin_p[2] + 0.5).astype(int)
+            x_origin, y_origin, _ = origin_p / origin_p[2]
             if x_origin >= 0 and x_origin < img.shape[1]:
                 if y_origin >= 0 and y_origin < img.shape[0]:
-                    result[x, y] = img_swapped[x_origin, y_origin]
+                    # result[x, y] = img_swapped[x_origin, y_origin]
+                    result[x, y] = GetBilinearPixel(img_swapped, x_origin, y_origin)
     return np.swapaxes(result, 0, 1)
 
 
