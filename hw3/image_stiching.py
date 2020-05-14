@@ -83,7 +83,13 @@ def RANSAC_homography(match_points_0, match_points_1):
 def warp(img_0, img_1, H):
 #     result = cv2.warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
     result = warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
+    
+    # blend
     result[0:img_1.shape[0], 0:img_1.shape[1]] = img_1
+    # alpha = ((img_1[:,:,0] * img_1[:,:,1] * img_1[:,:,2]) > 0)
+    alpha = 0.5
+    for col in range(3):
+        result[0:img_1.shape[0], 0:img_1.shape[1], col] = img_1[:,:,col]*alpha + result[0:img_1.shape[0], 0:img_1.shape[1], col]*(1-alpha)
     return result
 
 def get_img(img_name):
@@ -132,7 +138,7 @@ def warpPerspective(img, H, dsize):
             f_P = ((y2-posY)/(y2-y1))*f_R1 + ((posY-y1)/(y2-y1))*f_R2
             print(f_P)
             out.append(int(f_P))
-    
+
         return np.array(out)
 
     result_width, result_height = dsize
@@ -165,7 +171,7 @@ if __name__ == "__main__":
 
         good_matches, good_matches_for_img_show = find_good_matches(des_0, des_1)
         img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, None, flags=2)
-        cv2_img_show(img)
+        # cv2_img_show(img)
 
         match_points_0 = np.float32([kp_0[m.queryIdx].pt for m in good_matches]).reshape(-1, 2) 
         match_points_1 = np.float32([kp_1[m.trainIdx].pt for m in good_matches]).reshape(-1, 2)
