@@ -81,46 +81,10 @@ def RANSAC_homography(match_points_0, match_points_1):
     return max_inlier_h, np.array(max_inliers)
 
 def warp(img_0, img_1, H):
-    # print(np.linalg.inv(H)[1, 2])
-    # print(H.shape)
-    # print(H)
-    # print(img_0)
-    # exit(0)
-    # '''
-    toim = img_0
-    fromim = img_1
-    padding = fromim.shape[1]
-    # padding = 0
-    delta = fromim.shape[1]
-
-    H = np.linalg.inv(H)
-    # H_delta = np.array([[1, 0, 0], [0, 1, -delta], [0, 0, 1]])
-    # H = np.dot(H, H_delta)
-    # H = H.astype(int)
-    """ homography transformation """
-    def transf(p):
-        p2 = np.dot(H, [p[0], p[1], 1])
-        return (p2[0]/p2[2], p2[1]/p2[2])
-    # return np.dot(np.linalg.inv(H), img_1)
-    toim_t = np.hstack((np.zeros((toim.shape[0], padding, 3)), toim)) # pad the dest. image with 0 to the right
-    fromim_t = np.zeros((toim.shape[0], toim.shape[1] + padding, 3))
-    for col in range(3):
-        fromim_t[:, :, col] = geometric_transform(fromim[:, :, col], transf, (toim.shape[0], toim.shape[1]+padding))
-    
-    """ blend and return """
-    # '''
-    alpha = ((fromim_t[:, :, 0] * fromim_t[:, :, 1] * fromim_t[:, :, 2]) > 0)
-    for col in range(3):
-        toim_t[:, :, col] = fromim_t[:, :, col] * alpha + toim_t[:, :, col] * (1 - alpha)
-    # '''
-    # '''
-    
-    # result = cv2.warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
-    # result[0:img_1.shape[0], 0:img_1.shape[1]] = img_0
-    print(toim_t)
-    # exit(0)
-    return toim_t
-    # return result
+#     result = cv2.warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
+    result = warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
+    result[0:img_1.shape[0], 0:img_1.shape[1]] = img_1
+    return result
 
 def get_img(img_name):
     return cv2.imread(DATA_DIR + img_name)
@@ -129,6 +93,22 @@ def cv2_img_show(img):
     cv2.imshow("img", np.array(img, dtype = np.uint8))
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
+def warpPerspective(img, H, dsize):
+    result_width, result_height = dsize
+    img_width, img_height = img.shape[0], img.shape[1]
+
+    img_swapped = np.swapaxes(img, 0, 1)
+    H_inv = np.linalg.inv(H)
+    result = np.zeros((result_width, result_height, 3))
+    for x in range(result_width):
+        for y in range(result_height):
+            origin_p = np.dot(H_inv, [x, y, 1])
+            x_origin, y_origin, _ = (origin_p / origin_p[2] + 0.5).astype(int)
+            if x_origin >= 0 and x_origin < img.shape[1]:
+                if y_origin >= 0 and y_origin < img.shape[0]:
+                    result[x, y] = img_swapped[x_origin, y_origin]
+    return np.swapaxes(result, 0, 1)
 
 
 if __name__ == "__main__":
