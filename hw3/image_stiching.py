@@ -6,6 +6,7 @@ from scipy.ndimage import geometric_transform
 
 DATA_DIR = 'data/'
 IMAGES = [["2.jpg", "1.jpg"], ["hill2.JPG", "hill1.JPG"], ["S2.jpg", "S1.jpg"], ["my1.jpg", "my2.jpg"]]
+# IMAGES = [["2.jpg", "1.jpg"], ["hill2.JPG", "hill1.JPG"], ["S2.jpg", "S1.jpg"]]
 GOOD_MATCH_K = 2
 GOOD_DISTANCE_RATIO = 0.3
 RANSAC_THRESHOLD = 0.6
@@ -130,8 +131,8 @@ def warpPerspective(img, H, dsize):
 
         for channel in range(imArr.shape[2]):
             # x direction  
-            f_R1 = ((x2-posX)/(x2-x1))*imArr[x1,y1,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y2,channel]
-            f_R2 = ((x2-posX)/(x2-x1))*imArr[x1,y2,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y1,channel]
+            f_R1 = ((x2-posX)/(x2-x1))*imArr[x1,y1,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y1,channel]
+            f_R2 = ((x2-posX)/(x2-x1))*imArr[x1,y2,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y2,channel]
             print('f(R1): ', f_R1)
             print('f(R2): ', f_R2)
             # y direction
