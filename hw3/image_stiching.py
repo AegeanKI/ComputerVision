@@ -88,13 +88,17 @@ def warp(img_0, img_1, H):
     # result[0:img_1.shape[0], 0:img_1.shape[1]] = img_1
     # alpha = ((img_1[:,:,0] * img_1[:,:,1] * img_1[:,:,2]) > 0)
     alpha = 0.5
+    alpharange = int(img_1.shape[1]*0.1)
+    result[0:img_1.shape[0], 0:img_1.shape[1]-alpharange] = img_1
     for rgb in range(3):
         for row in range(img_1.shape[0]):
-            for col in range(img_1.shape[1]):
+            for col in range(img_1.shape[1]-alpharange,img_1.shape[1]):
+                alpha = 0 if col == img_1.shape[1]-1 else 1 / img_1.shape[1] - col
                 if result[row, col, rgb] == 0:
                     result[row, col, rgb] = img_1[row,col,rgb]
                 else: 
                     result[row, col, rgb] = img_1[row,col,rgb]*alpha + result[row,col, rgb]*(1-alpha)
+                    # result[row, col, rgb] = img_1[row,col,rgb]*alpha + result[row,col, rgb]*(1-alpha)
     return result
 
 def get_img(img_name):
