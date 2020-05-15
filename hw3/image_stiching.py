@@ -6,7 +6,6 @@ from scipy.ndimage import geometric_transform
 
 DATA_DIR = 'data/'
 IMAGES = [["2.jpg", "1.jpg"], ["hill2.JPG", "hill1.JPG"], ["S2.jpg", "S1.jpg"], ["my1.jpg", "my2.jpg"]]
-# IMAGES = [["2.jpg", "1.jpg"], ["hill2.JPG", "hill1.JPG"], ["S2.jpg", "S1.jpg"]]
 GOOD_MATCH_K = 2
 GOOD_DISTANCE_RATIO = 0.3
 RANSAC_THRESHOLD = 0.6
@@ -82,15 +81,20 @@ def RANSAC_homography(match_points_0, match_points_1):
     return max_inlier_h, np.array(max_inliers)
 
 def warp(img_0, img_1, H):
-#     result = cv2.warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
+    # result = cv2.warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
     result = warpPerspective(img_0, H, (img_0.shape[1] + img_1.shape[1], img_0.shape[0]))
     
     # blend
-    result[0:img_1.shape[0], 0:img_1.shape[1]] = img_1
+    # result[0:img_1.shape[0], 0:img_1.shape[1]] = img_1
     # alpha = ((img_1[:,:,0] * img_1[:,:,1] * img_1[:,:,2]) > 0)
     alpha = 0.5
-    for col in range(3):
-        result[0:img_1.shape[0], 0:img_1.shape[1], col] = img_1[:,:,col]*alpha + result[0:img_1.shape[0], 0:img_1.shape[1], col]*(1-alpha)
+    for rgb in range(3):
+        for row in range(img_1.shape[0]):
+            for col in range(img_1.shape[1]):
+                if result[row, col, rgb] == 0:
+                    result[row, col, rgb] = img_1[row,col,rgb]
+                else: 
+                    result[row, col, rgb] = img_1[row,col,rgb]*alpha + result[row,col, rgb]*(1-alpha)
     return result
 
 def get_img(img_name):
