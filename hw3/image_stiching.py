@@ -89,11 +89,11 @@ def warp(img_0, img_1, H):
     # alpha = ((img_1[:,:,0] * img_1[:,:,1] * img_1[:,:,2]) > 0)
     alpha = 0.5
     alpharange = int(img_1.shape[1]*0.1)
-    result[0:img_1.shape[0], 0:img_1.shape[1]-alpharange] = img_1
+    result[0:img_1.shape[0], 0:img_1.shape[1]-alpharange] = img_1[:,0:img_1.shape[1]-alpharange]
     for rgb in range(3):
         for row in range(img_1.shape[0]):
             for col in range(img_1.shape[1]-alpharange,img_1.shape[1]):
-                alpha = 0 if col == img_1.shape[1]-1 else 1 / img_1.shape[1] - col
+                alpha = 0 if col == img_1.shape[1]-1 else 1 * (img_1.shape[1] - col) / alpharange
                 if result[row, col, rgb] == 0:
                     result[row, col, rgb] = img_1[row,col,rgb]
                 else: 
@@ -141,11 +141,11 @@ def warpPerspective(img, H, dsize):
             # x direction  
             f_R1 = ((x2-posX)/(x2-x1))*imArr[x1,y1,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y1,channel]
             f_R2 = ((x2-posX)/(x2-x1))*imArr[x1,y2,channel] + ((posX-x1)/(x2-x1))*imArr[x2,y2,channel]
-            print('f(R1): ', f_R1)
-            print('f(R2): ', f_R2)
+            # print('f(R1): ', f_R1)
+            # print('f(R2): ', f_R2)
             # y direction
             f_P = ((y2-posY)/(y2-y1))*f_R1 + ((posY-y1)/(y2-y1))*f_R2
-            print(f_P)
+            # print(f_P)
             out.append(int(f_P))
 
         return np.array(out)
