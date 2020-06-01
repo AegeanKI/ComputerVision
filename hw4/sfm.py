@@ -1,8 +1,10 @@
 import cv2
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import random
 from scipy import signal
+from scipy.spatial import Delaunay
 
 IMAGES = [["Mesona1.JPG", "Mesona2.JPG"], ["Statue1.bmp", "Statue2.bmp"]]
 INTRINSIC = ["Mesona_calib.txt", "Statue_calib.txt"]
@@ -236,7 +238,7 @@ def compute_essential_candidate(f, K):
     return P1, P2_chooses
 
 
-def triangulation(x1, x2, P2_chooses, R, t):
+def find_best_solution(x1, x2, P2_chooses, R, t):
     ### add 1 for homogeneous ###
     x1_extend = np.ones((x1.shape[0], 3))
     x1_extend[:, :-1] = x1
@@ -280,6 +282,113 @@ def triangulation(x1, x2, P2_chooses, R, t):
     return P2_chooses[max_p2_idx]
 
 
+##################### Triangulation ############################
+
+def Triangulation(x1, x2, P, R, t):
+    ### add 1 for homogeneous ###
+    x1_extend = np.ones((x1.shape[0], 3))
+    x1_extend[:, :-1] = x1
+    x2_extend = np.ones((x1.shape[0], 3))
+    x2_extend[:, :-1] = x2
+
+    X_for_all = []
+    ### Calculate X matrix ###
+    for point_idx in range(x1_extend.shape[0]): # for each [u,v] pair
+        ### Create matrix A ###
+        u_1, v_1 = x1_extend[point_idx, 0], x1_extend[point_idx, 1]
+        u_2, v_2 = x2_extend[point_idx, 0], x2_extend[point_idx, 1]
+        # print(u_1.shape)
+        P_1 = P[0].reshape((P[0].shape[0], 1))
+        P_2 = P[1].reshape((P[1].shape[0], 1))
+        P_3 = P[2].reshape((P[2].shape[0], 1))
+        # print(P_1.shape)
+        # print(u_1 @ P_0.T)
+        A = [u_1 * P_3.T - P_1.T, v_1 * P_3.T - P_2.T, u_2 * P_3.T - P_1.T, v_2 * P_3.T - P_2.T]
+        A = np.array(A)
+        A = A.reshape((4, 4))
+        # print('A: ', A.shape)
+
+        ### calculate X ###
+        U, S, V = np.linalg.svd(A)
+        X = V[:, -1]
+        X = X / X[-1]
+        X = X[:-1].reshape((3, 1))
+
+        X_for_all.append(X)
+    return np.array(X_for_all)
+
+
+##################### Texture Mapping For 3D model ##########################
+
+def fprintf(stream, format_spec, *args):
+    stream.write(format_spec % args)
+
+
+def CheckVisible(M, P1, P2, P3):
+    # used to check if the surface normal facing the camera
+    #  M: 3x4 projection matrix
+    #  P1, P2, P3: 3D points
+
+    tri_normal = np.cross((P2-P1), (P3-P2)) # surface normal of mesh
+
+    cam_dir = [M(3, 1), M(3, 2), M(3, 3)] # camera direction
+
+    if (dot(cam_dir, tri_normal) < 0):
+        bVisible = 1 # visible
+        # fprintf('Visible!\n');
+    else:
+        bVisible = 0 # invisible
+        # fprintf('inVisible!\n');
+    return bVisible
+
+'''
+def obj_main(P, p_img2, M, img, im_index):
+    img_size = img.shape
+
+    """ mesh-triangulation """
+    tri = Delaunay(p_img2) # 2D delaunay
+
+    # trisurf mesh triangulation
+
+    """ output .obj file """
+    # fid = fopen('model.obj', 'wt)
+    cmd_fid = ['fid = fopen(''model' str(im_index) '.obj'', ''wt'');']
+    eval(cmd_fid)
+    fprintf(fid, '# obj file\n')
+    cmd_print = ['fprintf(fid, ''mtllib model' str(im_index) '.mtl\n\n'');']
+    eval(cmd_print)
+    fprintf(fid, 'usemtl Texture\n')
+
+    # output 3D vertex informationo (3D points)
+    [len, dummy] = P.shape
+    for i in range(1, len):
+        fprintf(fid, 'v %f %f %f\n', P(i, 1), P(i,2), P(i,3))
+    fprintf(fid, '\n\n\n')
+
+    # output vertex texture coordinate (2D points)
+    for i in range(1, len):
+        # texture mapping
+        fprintf(fid, 'vt %f %f\n', p_img2(i, 1)/img_size(2), 1-p_img2(i, 2)/img_size(1))
+    fprintf(fid, '\n\n\n')
+
+    # output face information
+    [len_tri, dummy] = tri.shape
+    bVisible = 0
+    for i in range(1, len_tri):
+        # 3D mesh normal
+        # fprintf('loop %d \n',i)
+        bVisible = CheckVisible(M, P(tri(i,1), :).T, P(tri(i,2), :).T, P(tri(i,3), :).T)
+        if bVisible == 1:
+            fprintf(fid, 'f %d/%d %d/%d %d/%d\n', \
+                tri(i, 1), tri(i, 1), tri(i, 2), tri(i, 2), tri(i, 3), tri(i, 3))
+        else:
+            fprintf(fid, 'f %d/%d %d/%d %d/%d\n', \
+                tri(i, 2), tri(i, 2), tri(i, 1), tri(i, 1), tri(i, 3), tri(i, 3))
+    
+    fclose(fid)
+'''
+
+
 ##################### Main Driven Function ###############################
 
 def sfm(img_0, img_1, K, R, t):
@@ -313,9 +422,12 @@ def sfm(img_0, img_1, K, R, t):
     print('P2 chooses: ', P2_chooses)
 
     ### 5. Find out most appropriate solution ###
-    P2 = triangulation(match_points_0, match_points_1, P2_chooses, R, t)
+    P2 = find_best_solution(match_points_0, match_points_1, P2_chooses, R, t)
     print(P2)
 
+    ### 6. Triangulation ###
+    X = Triangulation(match_points_0, match_points_1, P2, R, t)
+    print('X: ', X.shape)
 
 if __name__ == "__main__":
     for i, image_pair in enumerate(IMAGES):
