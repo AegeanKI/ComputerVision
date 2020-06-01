@@ -27,13 +27,27 @@ def get_calib_data(calib_file):
     For case 1, only calculate K here.
     """
     K = []
+    R = []
+    t = []
+    
     fp = open(calib_file, 'r')
     line = fp.readline()
-    while line:
-        row_of_K = [float(val) for val in line.split(' ')]
-        K.append(row_of_K)
+    if line != "calibration parameters": # Don't need calibrate
+        for _ in range(3): # K
+            line = fp.readline()
+            row_of_K = [float(val) for val in line.split(' ')]
+            K.append(row_of_K)
         line = fp.readline()
-    return np.array(K)
+        for _ in range(3): # R
+            line = fp.readline()
+            row_of_R = [float(val) for val in line.split(' ')]
+            R.append(row_of_R)
+        line = fp.readline()
+        for _ in range(1): # t
+            line = fp.readline()
+            row_of_t = [float(val) for val in line.split(' ')]
+            t.append(row_of_t)
+    return np.array(K), np.array(R), np.array(t).T
 
 
 def find_img_keypoint(img):
@@ -130,9 +144,9 @@ def compute_fundamental_normalized(x1, x2, shape):
     # n = x1.shape[1]
 
     # extend x1, x2
-    x1_padding = np.ones((37, 3))
+    x1_padding = np.ones((x1.shape[0], 3))
     x1_padding[:, :-1] = x1
-    x2_padding = np.ones((37, 3))
+    x2_padding = np.ones((x1.shape[0], 3))
     x2_padding[:, :-1] = x2
 
     # normalize image coordinates
@@ -231,7 +245,48 @@ def compute_essential_candidate(f, K):
     return P1, P2_chooses
 
 
-def sfm(img_0, img_1, intrinsic):
+def triangulation(x1, x2, P2_chooses, R, t):
+    ### add 1 for homogeneous ###
+    x1_extend = np.ones((x1.shape[0], 3))
+    x1_extend[:, :-1] = x1
+    x2_extend = np.ones((x1.shape[0], 3))
+    x2_extend[:, :-1] = x2
+
+    ### find best solution between each P2_chooses ###
+    cnt_of_front_points = np.zeros(4)
+    for i, P in enumerate(P2_chooses):
+        ### Create matrix A ###
+        for point_idx in range(x1_extend.shape[0]):
+            u_1, v_1 = x1_extend[point_idx, 0], x1_extend[point_idx, 1]
+            u_2, v_2 = x2_extend[point_idx, 0], x2_extend[point_idx, 1]
+            # print(u_1.shape)
+            P_1 = P[0].reshape((P[0].shape[0], 1))
+            P_2 = P[1].reshape((P[1].shape[0], 1))
+            P_3 = P[2].reshape((P[2].shape[0], 1))
+            print(P_1.shape)
+            # print(u_1 @ P_0.T)
+            A = [u_1 * P_3.T - P_1.T, v_1 * P_3.T - P_2.T, u_2 * P_3.T - P_1.T, v_2 * P_3.T - P_2.T]
+            A = np.array(A)
+            A = A.reshape((4, 4))
+            print('A: ', A.shape)
+
+            ### calculate X ###
+            U, S, V = np.linalg.svd(A)
+            X = V[:, -1]
+            print(X.shape)
+            print(X)
+
+            ### Count in-front-of-camera point ###
+            C = (-1) * R.T @ t
+            print(C.shape)
+            view_direction = R[2, :].T
+            if (X-C) @ view_direction > 0:
+                # in front!
+                cnt_of_front_points[i] += 1
+    print('cnt: ', cnt_of_front_points)
+
+
+def sfm(img_0, img_1, K, R, t):
     # 0. Calibration
 
     ### 1. Find correspondence across images ###
@@ -258,20 +313,21 @@ def sfm(img_0, img_1, intrinsic):
     ### 3. Draw interest points and the corresponding epipolar lines ###
 
     ### 4. Get 4 possible solutions of essential matrix from f ###
-    P1, P2_chooses = compute_essential_candidate(f, intrinsic)
+    P1, P2_chooses = compute_essential_candidate(f, K)
     print('P2 chooses: ', P2_chooses)
 
     ### 5. Find out most appropriate solution ###
-    
+    P2 = triangulation(match_points_0, match_points_1, P2_chooses, R, t)
 
 
 if __name__ == "__main__":
     for i, image_pair in enumerate(IMAGES):
         img1 = get_img(image_pair[0])
         img2 = get_img(image_pair[1])
-        intrinsic_matrix = get_calib_data(INTRINSIC[i])
+        K, R, t = get_calib_data(INTRINSIC[i])
         
-        sfm(img1, img2, intrinsic_matrix)
+        
+        sfm(img1, img2, K, R, t)
         exit(0)
 
     
