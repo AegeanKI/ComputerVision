@@ -36,7 +36,6 @@ def get_calib_data(calib_file):
     return np.array(K)
 
 
-
 def find_img_keypoint(img):
     sift = cv2.xfeatures2d.SIFT_create()
     kp, des = sift.detectAndCompute(img, None)
@@ -55,12 +54,12 @@ def find_good_matches(des_0, des_1):
     return good_matches, good_matches_for_img_show
 
 
-
 def find_img_keypoint(img):
     sift = cv2.xfeatures2d.SIFT_create()
     kp, des = sift.detectAndCompute(img, None)
 
     return kp, des
+
 
 def find_good_matches(des_0, des_1):
     bf = cv2.BFMatcher()
@@ -75,7 +74,6 @@ def find_good_matches(des_0, des_1):
 
 
 def geometricDistance(p0, p1, f):
-
     extend_p0 = np.array([p0[0], p0[1], 1])
     # estimate_p1 = np.dot(h, extend_p0)
     # estimate_p1 = estimate_p1 / estimate_p1[-1]
@@ -209,7 +207,7 @@ def compute_essential_candidate(f, K):
     S = np.diag(S)
     W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
 
-    P1 = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
+    P1 = K @ np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
 
     # P2 chooses
     P2_1 = np.zeros((3, 4))
@@ -263,8 +261,7 @@ def sfm(img_0, img_1, intrinsic):
     P1, P2_chooses = compute_essential_candidate(f, intrinsic)
     print('P2 chooses: ', P2_chooses)
 
-
-
+    ### 5. Find out most appropriate solution ###
     
 
 
