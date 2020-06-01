@@ -256,34 +256,37 @@ def triangulation(x1, x2, P2_chooses, R, t):
     cnt_of_front_points = np.zeros(4)
     for i, P in enumerate(P2_chooses):
         ### Create matrix A ###
-        for point_idx in range(x1_extend.shape[0]):
+        for point_idx in range(x1_extend.shape[0]): # for each [u,v] pair
             u_1, v_1 = x1_extend[point_idx, 0], x1_extend[point_idx, 1]
             u_2, v_2 = x2_extend[point_idx, 0], x2_extend[point_idx, 1]
             # print(u_1.shape)
             P_1 = P[0].reshape((P[0].shape[0], 1))
             P_2 = P[1].reshape((P[1].shape[0], 1))
             P_3 = P[2].reshape((P[2].shape[0], 1))
-            print(P_1.shape)
+            # print(P_1.shape)
             # print(u_1 @ P_0.T)
             A = [u_1 * P_3.T - P_1.T, v_1 * P_3.T - P_2.T, u_2 * P_3.T - P_1.T, v_2 * P_3.T - P_2.T]
             A = np.array(A)
             A = A.reshape((4, 4))
-            print('A: ', A.shape)
+            # print('A: ', A.shape)
 
             ### calculate X ###
             U, S, V = np.linalg.svd(A)
             X = V[:, -1]
-            print(X.shape)
-            print(X)
-
+            X = X / X[-1]
+            X = X[:-1].reshape((3, 1))
+            
             ### Count in-front-of-camera point ###
-            C = (-1) * R.T @ t
-            print(C.shape)
-            view_direction = R[2, :].T
-            if (X-C) @ view_direction > 0:
+            C = (-1) * R.T @ t            
+            view_direction = (R[2, :].T).reshape((3, 1))
+            if ((X-C).T @ view_direction).item() > 0:
                 # in front!
+                print('inner product: ', (X-C).T @ view_direction)
                 cnt_of_front_points[i] += 1
     print('cnt: ', cnt_of_front_points)
+    
+    max_p2_idx = np.argmax(cnt_of_front_points)
+    return P2_chooses[max_p2_idx]
 
 
 def sfm(img_0, img_1, K, R, t):
@@ -318,6 +321,7 @@ def sfm(img_0, img_1, K, R, t):
 
     ### 5. Find out most appropriate solution ###
     P2 = triangulation(match_points_0, match_points_1, P2_chooses, R, t)
+    print(P2)
 
 
 if __name__ == "__main__":
