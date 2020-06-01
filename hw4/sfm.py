@@ -11,6 +11,7 @@ GOOD_MATCH_K = 2
 GOOD_DISTANCE_RATIO = 0.3
 RANSAC_THRESHOLD = 0.6
 
+######################### Get Data ###################################
 
 def get_img(img_name):
     return cv2.imread(img_name)
@@ -50,6 +51,8 @@ def get_calib_data(calib_file):
     return np.array(K), np.array(R), np.array(t).T
 
 
+##################### Find matching points ###############################
+
 def find_img_keypoint(img):
     sift = cv2.xfeatures2d.SIFT_create()
     kp, des = sift.detectAndCompute(img, None)
@@ -86,6 +89,8 @@ def find_good_matches(des_0, des_1):
             good_matches.append(m)
     return good_matches, good_matches_for_img_show
 
+
+##################### Compute RANSAC (fundamental) ###############################
 
 def geometricDistance(p0, p1, f):
     extend_p0 = np.array([p0[0], p0[1], 1])
@@ -193,21 +198,7 @@ def RANSAC_fundamental(match_points_0, match_points_1, shape):
     return max_inlier_f, np.array(max_inliers)
 
 
-def get_pinhole_intrinsic_params():
-    K = []
-    with open(calibration_file_dir + '/camera_observatory.txt') as f:
-        lines = f.readlines()
-        calib_info = [float(val) for val in lines[0].split(' ')]
-        row1 = [calib_info[0], 0, calib_info[2]]
-        row2 = [0, calib_info[1], calib_info[3]]
-        row3 = [0, 0, 1]
-
-        K.append(row1)
-        K.append(row2)
-        K.append(row3)
-    
-    return K
-
+################# Compute Solution of Essential Matrix ########################
 
 def compute_essential_candidate(f, K):
     E = K.T @ f @ K
@@ -288,6 +279,8 @@ def triangulation(x1, x2, P2_chooses, R, t):
     max_p2_idx = np.argmax(cnt_of_front_points)
     return P2_chooses[max_p2_idx]
 
+
+##################### Main Driven Function ###############################
 
 def sfm(img_0, img_1, K, R, t):
     # 0. Calibration
