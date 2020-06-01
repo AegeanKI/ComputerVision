@@ -39,7 +39,7 @@ def cv2_img_show(img):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def correspondence(gray_0, gray_1):
+def KLT(gray_0, gray_1):
     """
     KLT
     """
@@ -85,6 +85,23 @@ def correspondence(gray_0, gray_1):
         (u[i,j],v[i,j]) = np.dot(A3,IT) # we have the vectors with minimized square error
     return u, v
 
+def find_img_keypoint(img):
+    sift = cv2.xfeatures2d.SIFT_create()
+    kp, des = sift.detectAndCompute(img, None)
+
+    return kp, des
+
+def find_good_matches(des_0, des_1):
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des_0, des_1, k=GOOD_MATCH_K)
+    good_matches_for_img_show = []
+    good_matches = []
+    for m, n in matches:
+        if m.distance < GOOD_DISTANCE_RATIO * n.distance:
+            good_matches_for_img_show.append([m])
+            good_matches.append(m)
+    return good_matches, good_matches_for_img_show
+
 
 def sfm(img1, img2, intrinsic):
     # 0. Calibration
@@ -92,7 +109,21 @@ def sfm(img1, img2, intrinsic):
     ### 1. Find correspondence across images ###
     gray_0 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
     gray_1 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
-    u, v = correspondence(gray_0, gray_1)
+    
+    kp_0, des_0 = find_img_keypoint(img_0)
+    kp_1, des_1 = find_img_keypoint(img_1)
+
+    good_matches, good_matches_for_img_show = find_good_matches(des_0, des_1)
+    img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, None, flags=2)
+    # cv2_img_show(img)
+
+    match_points_0 = np.float32([kp_0[m.queryIdx].pt for m in good_matches]).reshape(-1, 2) 
+    match_points_1 = np.float32([kp_1[m.trainIdx].pt for m in good_matches]).reshape(-1, 2)
+
+    ### 2. Estimate fundamental matrix ###
+
+    u, v = KLT(gray_0, gray_1)
+
 
     
 
