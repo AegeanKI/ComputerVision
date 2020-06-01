@@ -103,6 +103,35 @@ def find_good_matches(des_0, des_1):
             good_matches.append(m)
     return good_matches, good_matches_for_img_show
 
+def compute_fundamental(x1,x2):
+    """    Computes the fundamental matrix from corresponding points 
+        (x1,x2 3*n arrays) using the 8 point algorithm.
+        Each row in the A matrix below is constructed as
+        [x'*x, x'*y, x', y'*x, y'*y, y', x, y, 1] """
+    
+    n = x1.shape[1]
+    if x2.shape[1] != n:
+        raise ValueError("Number of points don't match.")
+    
+    # build matrix for equations
+    A = zeros((n,9))
+    for i in range(n):
+        A[i] = [x1[0,i]*x2[0,i], x1[0,i]*x2[1,i], x1[0,i]*x2[2,i],
+                x1[1,i]*x2[0,i], x1[1,i]*x2[1,i], x1[1,i]*x2[2,i],
+                x1[2,i]*x2[0,i], x1[2,i]*x2[1,i], x1[2,i]*x2[2,i] ]
+            
+    # compute linear least square solution
+    U,S,V = linalg.svd(A)
+    F = V[-1].reshape(3,3)
+        
+    # constrain F
+    # make rank 2 by zeroing out last singular value
+    U,S,V = linalg.svd(F)
+    S[2] = 0
+    F = dot(U,dot(diag(S),V))
+    
+    return F/F[2,2]
+
 
 def sfm(img_0, img_1, intrinsic):
     # 0. Calibration
@@ -115,11 +144,14 @@ def sfm(img_0, img_1, intrinsic):
     kp_1, des_1 = find_img_keypoint(img_1)
 
     good_matches, good_matches_for_img_show = find_good_matches(des_0, des_1)
-    img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, None, flags=2)
+    # img = cv2.drawMatchesKnn(img_0, kp_0, img_1, kp_1, good_matches_for_img_show, None, flags=2)
     # cv2_img_show(img)
 
     match_points_0 = np.float32([kp_0[m.queryIdx].pt for m in good_matches]).reshape(-1, 2) 
     match_points_1 = np.float32([kp_1[m.trainIdx].pt for m in good_matches]).reshape(-1, 2)
+
+    print(gray_0.shape)
+    print(match_points_0.shape)
 
     ### 2. Estimate fundamental matrix ###
 
