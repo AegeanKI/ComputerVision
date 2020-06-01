@@ -5,11 +5,36 @@ import random
 from scipy import signal
 
 IMAGES = [["Mesona1.JPG", "Mesona2.JPG"], ["Statue1.bmp", "Statue2.bmp"]]
-INTRINSIC = [None, "Statue_calib.txt"]
+INTRINSIC = ["Mesona_calib.txt", "Statue_calib.txt"]
 
 GOOD_MATCH_K = 2
 GOOD_DISTANCE_RATIO = 0.3
 RANSAC_THRESHOLD = 0.6
+
+
+def get_img(img_name):
+    return cv2.imread(img_name)
+
+
+def cv2_img_show(img):
+    cv2.imshow("img", np.array(img, dtype = np.uint8))
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def get_calib_data(calib_file):
+    """
+    For case 1, only calculate K here.
+    """
+    K = []
+    fp = open(calib_file, 'r')
+    line = fp.readline()
+    while line:
+        row_of_K = [float(val) for val in line.split(' ')]
+        K.append(row_of_K)
+        line = fp.readline()
+    return np.array(K)
+
 
 
 def find_img_keypoint(img):
@@ -30,61 +55,6 @@ def find_good_matches(des_0, des_1):
     return good_matches, good_matches_for_img_show
 
 
-def get_img(img_name):
-    return cv2.imread(img_name)
-
-
-def cv2_img_show(img):
-    cv2.imshow("img", np.array(img, dtype = np.uint8))
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-def KLT(gray_0, gray_1):
-    """
-    KLT
-    """
-    S = np.shape(gray_0)
-    ### finding the good features ###
-    features = cv2.goodFeaturesToTrack(gray_0 # Input image
-    ,10000 # max corners
-    ,0.01 # lambda 1 (quality)
-    ,10 # lambda 2 (quality)
-    )
-    feature = np.int0(features)
-    # First Derivative in X direction
-    Ix = signal.convolve2d(gray_0,[[-0.25,0.25],[-0.25,0.25]],'same') + signal.convolve2d(gray_1,[[-0.25,0.25],[-0.25,0.25]],'same')
-    # First Derivative in Y direction
-    Iy = signal.convolve2d(gray_0,[[-0.25,-0.25],[0.25,0.25]],'same') + signal.convolve2d(gray_1,[[-0.25,-0.25],[0.25,0.25]],'same')
-    # First Derivative in XY direction
-    It = signal.convolve2d(gray_0,[[0.25,0.25],[0.25,0.25]],'same') + signal.convolve2d(gray_1,[[-0.25,-0.25],[-0.25,-0.25]],'same')
-    
-
-    ### Use 2nd moment matrix & difference across frames to fine displacement ###
-    #creating the u and v vector
-    u = v = np.nan*np.ones(S)
-
-    # Calculating the u and v arrays for the good features obtained n the previous step.
-    for l in feature:
-        j,i = l.ravel()
-        # calculating the derivatives for the neighbouring pixels
-        # since we are using  a 3*3 window, we have 9 elements for each derivative.
-
-        IX = ([Ix[i-1,j-1],Ix[i,j-1],Ix[i-1,j-1],Ix[i-1,j],Ix[i,j],Ix[i+1,j],Ix[i-1,j+1],Ix[i,j+1],Ix[i+1,j-1]]) #The x-component of the gradient vector
-        IY = ([Iy[i-1,j-1],Iy[i,j-1],Iy[i-1,j-1],Iy[i-1,j],Iy[i,j],Iy[i+1,j],Iy[i-1,j+1],Iy[i,j+1],Iy[i+1,j-1]]) #The Y-component of the gradient vector
-        IT = ([It[i-1,j-1],It[i,j-1],It[i-1,j-1],It[i-1,j],It[i,j],It[i+1,j],It[i-1,j+1],It[i,j+1],It[i+1,j-1]]) #The XY-component of the gradient vector
-
-        # Using the minimum least squares solution approach
-        LK = (IX, IY)
-        LK = np.matrix(LK)
-        LK_T = np.array(np.matrix(LK)) # transpose of A
-        LK = np.array(np.matrix.transpose(LK)) 
-
-        A1 = np.dot(LK_T,LK) #Psedudo Inverse
-        A2 = np.linalg.pinv(A1)
-        A3 = np.dot(A2,LK_T)
-
-        (u[i,j],v[i,j]) = np.dot(A3,IT) # we have the vectors with minimized square error
-    return u, v
 
 def find_img_keypoint(img):
     sift = cv2.xfeatures2d.SIFT_create()
@@ -211,6 +181,58 @@ def RANSAC_fundamental(match_points_0, match_points_1, shape):
     return max_inlier_f, np.array(max_inliers)
 
 
+def get_pinhole_intrinsic_params():
+    K = []
+    with open(calibration_file_dir + '/camera_observatory.txt') as f:
+        lines = f.readlines()
+        calib_info = [float(val) for val in lines[0].split(' ')]
+        row1 = [calib_info[0], 0, calib_info[2]]
+        row2 = [0, calib_info[1], calib_info[3]]
+        row3 = [0, 0, 1]
+
+        K.append(row1)
+        K.append(row2)
+        K.append(row3)
+    
+    return K
+
+
+def compute_essential_candidate(f, K):
+    E = K.T @ f @ K
+    U, S, V = np.linalg.svd(E)
+    S = np.diag(S)
+    
+    m = (S[1, 1] + S[2, 2]) / 2
+    E = U @ np.array([[m, 0, 0], [0, m, 0], [0, 0, 0]]) @ V.T
+    
+    U, S, V = np.linalg.svd(E)
+    S = np.diag(S)
+    W = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+
+    P1 = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]])
+
+    # P2 chooses
+    P2_1 = np.zeros((3, 4))
+    P2_1[:, :-1] = U @ W @ V.T
+    P2_1[:, -1] = U[2]
+
+    P2_2 = np.zeros((3, 4))
+    P2_2[:, :-1] = U @ W @ V.T
+    P2_2[:, -1] = (-1)*U[2]
+
+    P2_3 = np.zeros((3, 4))
+    P2_3[:, :-1] = U @ W.T @ V.T
+    P2_3[:, -1] = U[2]
+
+    P2_4 = np.zeros((3, 4))
+    P2_4[:, :-1] = U @ W.T @ V.T
+    P2_4[:, -1] = (-1)*U[2]
+
+    P2_chooses = np.array([P2_1, P2_2, P2_3, P2_4])    
+
+    return P1, P2_chooses
+
+
 def sfm(img_0, img_1, intrinsic):
     # 0. Calibration
 
@@ -235,6 +257,13 @@ def sfm(img_0, img_1, intrinsic):
     f, inliers = RANSAC_fundamental(match_points_0, match_points_1, gray_0.shape)
     print(f)
 
+    ### 3. Draw interest points and the corresponding epipolar lines ###
+
+    ### 4. Get 4 possible solutions of essential matrix from f ###
+    P1, P2_chooses = compute_essential_candidate(f, intrinsic)
+    print('P2 chooses: ', P2_chooses)
+
+
 
     
 
@@ -243,8 +272,8 @@ if __name__ == "__main__":
     for i, image_pair in enumerate(IMAGES):
         img1 = get_img(image_pair[0])
         img2 = get_img(image_pair[1])
-        intrinsic_matrix = INTRINSIC[i]
-
+        intrinsic_matrix = get_calib_data(INTRINSIC[i])
+        
         sfm(img1, img2, intrinsic_matrix)
         exit(0)
 
