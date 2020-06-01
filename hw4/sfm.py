@@ -110,9 +110,7 @@ def compute_fundamental(x1,x2):
         [x'*x, x'*y, x', y'*x, y'*y, y', x, y, 1] """
     
     n = x1.shape[1]
-    if x2.shape[1] != n:
-        raise ValueError("Number of points don't match.")
-    
+       
     # build matrix for equations
     A = zeros((n,9))
     for i in range(n):
