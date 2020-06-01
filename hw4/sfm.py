@@ -103,32 +103,100 @@ def find_good_matches(des_0, des_1):
             good_matches.append(m)
     return good_matches, good_matches_for_img_show
 
-def compute_fundamental(x1,x2):
-    """    Computes the fundamental matrix from corresponding points 
-        (x1,x2 3*n arrays) using the 8 point algorithm.
-        Each row in the A matrix below is constructed as
-        [x'*x, x'*y, x', y'*x, y'*y, y', x, y, 1] """
+
+def geometricDistance(p0, p1, h):
+
+    extend_p0 = np.array([p0[0], p0[1], 1])
+    estimate_p1 = np.dot(h, extend_p0)
+    estimate_p1 = estimate_p1 / estimate_p1[-1]
     
+    extend_p1 = np.array([p1[0], p1[1], 1])
+    error = extend_p1 - estimate_p1
+    return np.linalg.norm(error)
+
+def append_p(P, obj, img):
+    P.append([obj[0], obj[1], 1, 0, 0, 0, -img[0]*obj[0], -img[0]*obj[1], -img[0]])
+    P.append([0, 0, 0, obj[0], obj[1], 1, -img[1]*obj[0], -img[1]*obj[1], -img[1]])
+
+
+def compute_fundamental(x1,x2):
+    """
+    Computes the fundamental matrix from corresponding points 
+    (x1,x2 3*n arrays) using the 8 point algorithm.
+    Each row in the A matrix below is constructed as
+    [x'*x, x'*y, x', y'*x, y'*y, y', x, y, 1]
+    """    
     n = x1.shape[1]
        
     # build matrix for equations
-    A = zeros((n,9))
+    A = np.zeros((n,9))
     for i in range(n):
         A[i] = [x1[0,i]*x2[0,i], x1[0,i]*x2[1,i], x1[0,i]*x2[2,i],
                 x1[1,i]*x2[0,i], x1[1,i]*x2[1,i], x1[1,i]*x2[2,i],
                 x1[2,i]*x2[0,i], x1[2,i]*x2[1,i], x1[2,i]*x2[2,i] ]
             
     # compute linear least square solution
-    U,S,V = linalg.svd(A)
+    U,S,V = np.linalg.svd(A)
     F = V[-1].reshape(3,3)
         
     # constrain F
     # make rank 2 by zeroing out last singular value
-    U,S,V = linalg.svd(F)
+    U,S,V = np.linalg.svd(F)
     S[2] = 0
-    F = dot(U,dot(diag(S),V))
-    
+    F = np.dot(U,np.dot(np.diag(S),V))
+
     return F/F[2,2]
+
+
+def compute_fundamental_normalized(x1,x2):
+    """
+    Computes the fundamental matrix from corresponding points 
+    (x1,x2 3*n arrays) using the normalized 8 point algorithm. 
+    """
+    n = x1.shape[1]
+
+    # normalize image coordinates
+    x1 = x1 / x1[2]
+    mean_1 = np.mean(x1[:2],axis=1)
+    S1 = np.sqrt(2) / np.std(x1[:2])
+    T1 = np.array([[S1,0,-S1*mean_1[0]],[0,S1,-S1*mean_1[1]],[0,0,1]])
+    x1 = np.dot(T1,x1)
+    
+    x2 = x2 / x2[2]
+    mean_2 = np.mean(x2[:2],axis=1)
+    S2 = np.sqrt(2) / np.std(x2[:2])
+    T2 = np.array([[S2,0,-S2*mean_2[0]],[0,S2,-S2*mean_2[1]],[0,0,1]])
+    x2 = np.dot(T2,x2)
+
+    # compute F with the normalized coordinates
+    F = compute_fundamental(x1,x2)
+
+    # reverse normalization
+    F = np.dot(T1.T,dot(F,T2))
+
+    return F/F[2,2]
+
+
+def RANSAC_fundamental(match_points_0, match_points_1):
+    max_inliers = []
+    # max_inlier_h = None
+    max_inlier_f = None
+    for i in range(100):
+        idx = random.sample(range(0, len(match_points_0)), 5)
+        # h = calculate_homography(match_points_0[idx], match_points_1[idx])
+        f = compute_fundamental(match_points_0, match_points_1)
+
+        inliers = []
+        for p0, p1 in zip(match_points_0, match_points_1):
+            d = geometricDistance(p0, p1, f)
+            if d < 5:
+                inliers.append([p0, p1])
+        if len(inliers) > len(max_inliers):
+            max_inliers = inliers
+            # max_inlier_h = h
+            max_inlier_f = f
+
+    return max_inlier_f, np.array(max_inliers)
 
 
 def sfm(img_0, img_1, intrinsic):
@@ -152,8 +220,8 @@ def sfm(img_0, img_1, intrinsic):
     print(match_points_0.shape)
 
     ### 2. Estimate fundamental matrix ###
-
-    u, v = KLT(gray_0, gray_1)
+    f, inliers = RANSAC_fundamental(match_points_0, match_points_1)
+    print(f)
 
 
     
