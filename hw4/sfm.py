@@ -43,6 +43,7 @@ def KLT(gray_0, gray_1):
     """
     KLT
     """
+    S = np.shape(gray_0)
     ### finding the good features ###
     features = cv2.goodFeaturesToTrack(gray_0 # Input image
     ,10000 # max corners
@@ -103,12 +104,12 @@ def find_good_matches(des_0, des_1):
     return good_matches, good_matches_for_img_show
 
 
-def sfm(img1, img2, intrinsic):
+def sfm(img_0, img_1, intrinsic):
     # 0. Calibration
 
     ### 1. Find correspondence across images ###
-    gray_0 = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
-    gray_1 = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+    gray_0 = cv2.cvtColor(img_0, cv2.COLOR_BGR2GRAY)
+    gray_1 = cv2.cvtColor(img_1, cv2.COLOR_BGR2GRAY)
     
     kp_0, des_0 = find_img_keypoint(img_0)
     kp_1, des_1 = find_img_keypoint(img_1)
