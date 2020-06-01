@@ -104,15 +104,21 @@ def find_good_matches(des_0, des_1):
     return good_matches, good_matches_for_img_show
 
 
-def geometricDistance(p0, p1, h):
+def geometricDistance(p0, p1, f):
 
     extend_p0 = np.array([p0[0], p0[1], 1])
-    estimate_p1 = np.dot(h, extend_p0)
-    estimate_p1 = estimate_p1 / estimate_p1[-1]
+    # estimate_p1 = np.dot(h, extend_p0)
+    # estimate_p1 = estimate_p1 / estimate_p1[-1]
     
     extend_p1 = np.array([p1[0], p1[1], 1])
-    error = extend_p1 - estimate_p1
-    return np.linalg.norm(error)
+    # error = extend_p1 - estimate_p1
+    # print('p0:', extend_p0.shape)
+    # print('p1:', extend_p1.shape)
+    # print('f:', f.shape)
+    # # exit(0)
+    disparity = np.linalg.norm((extend_p1 @ f) @ extend_p0)
+    # return np.linalg.norm(error)
+    return disparity
 
 def append_p(P, obj, img):
     P.append([obj[0], obj[1], 1, 0, 0, 0, -img[0]*obj[0], -img[0]*obj[1], -img[0]])
@@ -148,47 +154,53 @@ def compute_fundamental(x1,x2):
     return F/F[2,2]
 
 
-def compute_fundamental_normalized(x1,x2):
+def compute_fundamental_normalized(x1, x2, shape):
     """
     Computes the fundamental matrix from corresponding points 
     (x1,x2 3*n arrays) using the normalized 8 point algorithm. 
     """
-    n = x1.shape[1]
+    # n = x1.shape[1]
+
+    # extend x1, x2
+    x1_padding = np.ones((37, 3))
+    x1_padding[:, :-1] = x1
+    x2_padding = np.ones((37, 3))
+    x2_padding[:, :-1] = x2
 
     # normalize image coordinates
-    x1 = x1 / x1[2]
-    mean_1 = np.mean(x1[:2],axis=1)
-    S1 = np.sqrt(2) / np.std(x1[:2])
-    T1 = np.array([[S1,0,-S1*mean_1[0]],[0,S1,-S1*mean_1[1]],[0,0,1]])
-    x1 = np.dot(T1,x1)
-    
-    x2 = x2 / x2[2]
-    mean_2 = np.mean(x2[:2],axis=1)
-    S2 = np.sqrt(2) / np.std(x2[:2])
-    T2 = np.array([[S2,0,-S2*mean_2[0]],[0,S2,-S2*mean_2[1]],[0,0,1]])
-    x2 = np.dot(T2,x2)
+    # x1 = x1 / x1[2]
+    # mean_1 = np.mean(x1[:2],axis=1)
+    # S1 = np.sqrt(2) / np.std(x1[:2])
+    # T1 = np.array([[S1,0,-S1*mean_1[0]],[0,S1,-S1*mean_1[1]],[0,0,1]])
+    # x1 = np.dot(T1,x1)
+    T1 = np.array([[2/shape[0], 0, -1], [0, 2/shape[1], -1], [0, 0, 1]])
+    x1_padding = np.dot(T1, x1_padding.T)
+    x2_padding = np.dot(T1, x2_padding.T)
 
     # compute F with the normalized coordinates
-    F = compute_fundamental(x1,x2)
+    F = compute_fundamental(x1_padding,x2_padding)
 
     # reverse normalization
-    F = np.dot(T1.T,dot(F,T2))
+    F = np.dot(T1.T, np.dot(F, T1))
 
     return F/F[2,2]
 
 
-def RANSAC_fundamental(match_points_0, match_points_1):
+def RANSAC_fundamental(match_points_0, match_points_1, shape):
     max_inliers = []
     # max_inlier_h = None
     max_inlier_f = None
     for i in range(100):
         idx = random.sample(range(0, len(match_points_0)), 5)
         # h = calculate_homography(match_points_0[idx], match_points_1[idx])
-        f = compute_fundamental(match_points_0, match_points_1)
+        # f = compute_fundamental(match_points_0, match_points_1)
+        f = compute_fundamental_normalized(match_points_0, match_points_1, shape)
+        print('f:', f)
 
         inliers = []
         for p0, p1 in zip(match_points_0, match_points_1):
             d = geometricDistance(p0, p1, f)
+            print('d:', d)
             if d < 5:
                 inliers.append([p0, p1])
         if len(inliers) > len(max_inliers):
@@ -220,7 +232,7 @@ def sfm(img_0, img_1, intrinsic):
     print(match_points_0.shape)
 
     ### 2. Estimate fundamental matrix ###
-    f, inliers = RANSAC_fundamental(match_points_0, match_points_1)
+    f, inliers = RANSAC_fundamental(match_points_0, match_points_1, gray_0.shape)
     print(f)
 
 
