@@ -10,7 +10,7 @@ IMAGES = [["Mesona1.JPG", "Mesona2.JPG"], ["Statue1.bmp", "Statue2.bmp"]]
 INTRINSIC = ["Mesona_calib.txt", "Statue_calib.txt"]
 
 GOOD_MATCH_K = 2
-GOOD_DISTANCE_RATIO = 0.3
+GOOD_DISTANCE_RATIO = 0.8
 RANSAC_THRESHOLD = 0.6
 
 ######################### Get Data ###################################
@@ -70,6 +70,10 @@ def find_good_matches(des_0, des_1):
         if m.distance < GOOD_DISTANCE_RATIO * n.distance:
             good_matches_for_img_show.append([m])
             good_matches.append(m)
+
+    good_matches = sorted(good_matches, key=lambda x: x.distance)
+    num_good_matches = int(len(good_matches) * 0.25)
+    good_matches = good_matches[:num_good_matches]
     return good_matches, good_matches_for_img_show
 
 
@@ -80,31 +84,29 @@ def find_img_keypoint(img):
     return kp, des
 
 
-def find_good_matches(des_0, des_1):
-    bf = cv2.BFMatcher()
-    matches = bf.knnMatch(des_0, des_1, k=GOOD_MATCH_K)
-    good_matches_for_img_show = []
-    good_matches = []
-    for m, n in matches:
-        if m.distance < GOOD_DISTANCE_RATIO * n.distance:
-            good_matches_for_img_show.append([m])
-            good_matches.append(m)
-    return good_matches, good_matches_for_img_show
+# def find_good_matches(des_0, des_1):
+#     bf = cv2.BFMatcher()
+#     matches = bf.knnMatch(des_0, des_1, k=GOOD_MATCH_K)
+#     good_matches_for_img_show = []
+#     good_matches = []
+#     for m, n in matches:
+#         if m.distance < GOOD_DISTANCE_RATIO * n.distance:
+#             good_matches_for_img_show.append([m])
+#             good_matches.append(m)
+#     return good_matches, good_matches_for_img_show
 
 
 ##################### Compute RANSAC (fundamental) ###############################
 
-def geometricDistance(p0, p1, f):
+def geometricDistance(p0, p1, f, shape):
     extend_p0 = np.array([p0[0], p0[1], 1])
     # estimate_p1 = np.dot(h, extend_p0)
     # estimate_p1 = estimate_p1 / estimate_p1[-1]
     
     extend_p1 = np.array([p1[0], p1[1], 1])
-    # error = extend_p1 - estimate_p1
-    # print('p0:', extend_p0.shape)
-    # print('p1:', extend_p1.shape)
-    # print('f:', f.shape)
-    # # exit(0)
+    T1 = np.array([[2/shape[0], 0, -1], [0, 2/shape[1], -1], [0, 0, 1]])
+    extend_p1 = np.dot(T1, extend_p1.T)
+    extend_p0 = np.dot(T1, extend_p0.T)
     disparity = abs((extend_p1.T @ f) @ extend_p0)
     # return np.linalg.norm(error)
     return disparity
@@ -113,8 +115,24 @@ def append_p(P, obj, img):
     P.append([obj[0], obj[1], 1, 0, 0, 0, -img[0]*obj[0], -img[0]*obj[1], -img[0]])
     P.append([0, 0, 0, obj[0], obj[1], 1, -img[1]*obj[0], -img[1]*obj[1], -img[1]])
 
+def GetRowOf_F(a, b):
+    return [a[0]*b[0], a[1]*b[0], b[0], a[0]*b[1], a[1]*b[1], b[1], a[0], a[1], 1 ]
+
 
 def compute_fundamental(x1,x2):
+    arr = []
+    for i in range(len(x1)):
+        arr.append(GetRowOf_F(x1[:,i], x2[:,i]))
+
+    U, S, V = np.linalg.svd(np.array(arr))
+    F = np.reshape(V[-1], (3, 3))
+    
+    U, D, V = np.linalg.svd(F)
+    D[2] = 0
+    F = U @ np.diag(D) @ V
+    F /= F[-1, -1]
+
+    return F
     """
     Computes the fundamental matrix from corresponding points 
     (x1,x2 3*n arrays) using the 8 point algorithm.
@@ -168,13 +186,13 @@ def compute_fundamental_normalized(x1, x2, shape):
     x2_padding = np.dot(T1, x2_padding.T)
 
     # compute F with the normalized coordinates
-    F = compute_fundamental(x1_padding,x2_padding)
+    F = compute_fundamental(x1_padding, x2_padding)
 
     # reverse normalization
-    F = np.dot(T1.T, np.dot(F, T1))
+#     F = T1.T @ F @ T1
 
 #     return F/F[2,2]
-    return F
+    return F, T1
 
 
 def RANSAC_fundamental(match_points_0, match_points_1, shape):
@@ -182,22 +200,23 @@ def RANSAC_fundamental(match_points_0, match_points_1, shape):
     # max_inlier_h = None
     max_inlier_f = None
     for i in range(1000):
-        idx = random.sample(range(0, len(match_points_0)), 8)
-        # h = calculate_homography(match_points_0[idx], match_points_1[idx])
-        # f = compute_fundamental(match_points_0, match_points_1)
-        f = compute_fundamental_normalized(match_points_0[idx], match_points_1[idx], shape)
+        idx = np.random.randint(0, len(match_points_0), 60)
+        f, T1 = compute_fundamental_normalized(match_points_0[idx], match_points_1[idx], shape)
 #         print('f:', f)
 
         inliers = []
         for p0, p1 in zip(match_points_0, match_points_1):
-            d = geometricDistance(p0, p1, f)
+            d = geometricDistance(p0, p1, f, shape)
 #             print('d:', d)
-            if d < 5:
+            if d < 0.01:
                 inliers.append([p0, p1])
         if len(inliers) > len(max_inliers):
+            print("inliner length: {}".format(len(inliers)))
             max_inliers = inliers
             # max_inlier_h = h
             max_inlier_f = f
+    T1 = np.array([[2/shape[0], 0, -1], [0, 2/shape[1], -1], [0, 0, 1]])
+    max_inlier_f = T1.T @ max_inlier_f @ T1
 
     return max_inlier_f, np.array(max_inliers)
 
