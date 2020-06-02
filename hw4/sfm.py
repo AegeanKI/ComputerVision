@@ -105,7 +105,7 @@ def geometricDistance(p0, p1, f):
     # print('p1:', extend_p1.shape)
     # print('f:', f.shape)
     # # exit(0)
-    disparity = np.linalg.norm((extend_p1 @ f) @ extend_p0)
+    disparity = abs((extend_p1.T @ f) @ extend_p0)
     # return np.linalg.norm(error)
     return disparity
 
@@ -140,7 +140,8 @@ def compute_fundamental(x1,x2):
     S[2] = 0
     F = np.dot(U,np.dot(np.diag(S),V))
 
-    return F/F[2,2]
+#     return F/F[2,2]
+    return F
 
 
 def compute_fundamental_normalized(x1, x2, shape):
@@ -172,24 +173,25 @@ def compute_fundamental_normalized(x1, x2, shape):
     # reverse normalization
     F = np.dot(T1.T, np.dot(F, T1))
 
-    return F/F[2,2]
+#     return F/F[2,2]
+    return F
 
 
 def RANSAC_fundamental(match_points_0, match_points_1, shape):
     max_inliers = []
     # max_inlier_h = None
     max_inlier_f = None
-    for i in range(100):
-        idx = random.sample(range(0, len(match_points_0)), 5)
+    for i in range(1000):
+        idx = random.sample(range(0, len(match_points_0)), 8)
         # h = calculate_homography(match_points_0[idx], match_points_1[idx])
         # f = compute_fundamental(match_points_0, match_points_1)
-        f = compute_fundamental_normalized(match_points_0, match_points_1, shape)
-        print('f:', f)
+        f = compute_fundamental_normalized(match_points_0[idx], match_points_1[idx], shape)
+#         print('f:', f)
 
         inliers = []
         for p0, p1 in zip(match_points_0, match_points_1):
             d = geometricDistance(p0, p1, f)
-            print('d:', d)
+#             print('d:', d)
             if d < 5:
                 inliers.append([p0, p1])
         if len(inliers) > len(max_inliers):
@@ -274,7 +276,7 @@ def find_best_solution(x1, x2, P2_chooses, R, t):
             view_direction = (R[2, :].T).reshape((3, 1))
             if ((X-C).T @ view_direction).item() > 0:
                 # in front!
-                print('inner product: ', (X-C).T @ view_direction)
+#                 print('inner product: ', (X-C).T @ view_direction)
                 cnt_of_front_points[i] += 1
     print('cnt: ', cnt_of_front_points)
     
@@ -429,6 +431,20 @@ def obj_main(P, p_img2, M, img, im_index):
 
 
 ##################### Main Driven Function ###############################
+def drawlines(img1,img2,lines, pts1, pts2):
+    ''' img1 - image on which we draw the epilines for the points in img2
+        lines - corresponding epilines '''
+    r,c = img1.shape
+    img1 = cv2.cvtColor(img1,cv2.COLOR_GRAY2BGR)
+    img2 = cv2.cvtColor(img2,cv2.COLOR_GRAY2BGR)
+    for r, pt1, pt2 in zip(lines, pts1, pts2):
+        color = tuple(np.random.randint(0,255,3).tolist())
+        x0,y0 = map(int, [0, -r[2]/r[1] ])
+        x1,y1 = map(int, [c, -(r[2]+r[0]*c)/r[1] ])
+        img1 = cv2.line(img1, (x0,y0), (x1,y1), color,1)
+        img1 = cv2.circle(img1,tuple(pt1),5,color,-1)
+        img2 = cv2.circle(img2,tuple(pt2),5,color,-1)
+    return img1,img2
 
 def sfm(img_0, img_1, K, R, t):
     # 0. Calibration
@@ -447,14 +463,21 @@ def sfm(img_0, img_1, K, R, t):
     match_points_0 = np.float32([kp_0[m.queryIdx].pt for m in good_matches]).reshape(-1, 2) 
     match_points_1 = np.float32([kp_1[m.trainIdx].pt for m in good_matches]).reshape(-1, 2)
 
-    print(gray_0.shape)
-    print(match_points_0.shape)
+#     print(gray_0.shape)
+    print("match_points_1")
+    print(match_points_1)
 
     ### 2. Estimate fundamental matrix ###
     f, inliers = RANSAC_fundamental(match_points_0, match_points_1, gray_0.shape)
+    print("f:")
     print(f)
 
-    ### 3. Draw interest points and the corresponding epipolar lines ###
+    ### 3. Drlines1 = cv2.computeCorrespondEpilines(pts2.reshape(-1,1,2), 2,F)
+    lines1 = cv2.computeCorrespondEpilines(match_points_1.reshape(-1,1,2), 2, f)
+    lines1 = lines1.reshape(-1,3)
+    img5,img6 = drawlines(gray_0, gray_1, lines1, match_points_1, match_points_1)
+    plt.imshow(img5)
+    plt.show()
 
     ### 4. Get 4 possible solutions of essential matrix from f ###
     P1, P2_chooses = compute_essential_candidate(f, K)
@@ -462,12 +485,14 @@ def sfm(img_0, img_1, K, R, t):
 
     ### 5. Find out most appropriate solution ###
     P2 = find_best_solution(match_points_0, match_points_1, P2_chooses, R, t)
+    print("P2:")
     print(P2)
 
     ### 6. Triangulation ###
     # X = Triangulation(match_points_0, match_points_1, P2, R, t)
     X = triangulate(match_points_0, match_points_1, P1, P2)
     print('X: ', X.shape)
+    print('X: ', X)
 
 if __name__ == "__main__":
     for i, image_pair in enumerate(IMAGES):
