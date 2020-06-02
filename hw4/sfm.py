@@ -286,7 +286,7 @@ def find_best_solution(x1, x2, P2_chooses, R, t):
 
 ##################### Triangulation ############################
 
-'''
+
 def Triangulation(x1, x2, P, R, t):
     ### add 1 for homogeneous ###
     x1_extend = np.ones((x1.shape[0], 3))
@@ -319,45 +319,6 @@ def Triangulation(x1, x2, P, R, t):
 
         X_for_all.append(X)
     return np.array(X_for_all)
-'''
-
-
-def triangulate_point(x1,x2,P1,P2):
-    """ 
-    Point pair triangulation from 
-    least squares solution. 
-    """
-        
-    M = np.zeros((6,6))
-    M[:3,:4] = P1
-    M[3:,:4] = P2
-    M[:3,4] = -x1
-    M[3:,5] = -x2
-
-    U,S,V = np.linalg.svd(M)
-    X = V[-1,:4]
-
-    return X / X[3]
-
-
-def triangulate(x1,x2,P1,P2):
-    """
-    Two-view triangulation of points in 
-    x1,x2 (3*n homog. coordinates).
-    """
-    x1 = x1.T
-    x2 = x2.T
-    x1_padding = np.ones((x1.shape[0]+1, x1.shape[1]))
-    x1_padding[:-1, :] = x1
-
-    x2_padding = np.ones((x2.shape[0]+1, x2.shape[1]))
-    x2_padding[:-1, :] = x2
-    n = x1.shape[1]
-    print(x1_padding.shape)
-    print(n)
-    X = np.array([ triangulate_point(x1_padding[:,i],x2_padding[:,i],P1,P2) for i in range(n)])
-    return X[:, :-1]
-
 
 ##################### Texture Mapping For 3D model ##########################
 
@@ -489,8 +450,7 @@ def sfm(img_0, img_1, K, R, t):
     print(P2)
 
     ### 6. Triangulation ###
-    # X = Triangulation(match_points_0, match_points_1, P2, R, t)
-    X = triangulate(match_points_0, match_points_1, P1, P2)
+    X = Triangulation(match_points_0, match_points_1, P2, R, t)
     print('X: ', X.shape)
     print('X: ', X)
 
