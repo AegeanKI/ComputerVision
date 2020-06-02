@@ -99,12 +99,15 @@ def find_img_keypoint(img):
 ##################### Compute RANSAC (fundamental) ###############################
 
 def geometricDistance(p0, p1, f, shape):
+    disparity = abs(p1.T @ f @ p0)
+    return disparity
+
     extend_p0 = np.array([p0[0], p0[1], 1])
     # estimate_p1 = np.dot(h, extend_p0)
     # estimate_p1 = estimate_p1 / estimate_p1[-1]
     
     extend_p1 = np.array([p1[0], p1[1], 1])
-    T1 = np.array([[2/shape[0], 0, -1], [0, 2/shape[1], -1], [0, 0, 1]])
+    T1 = np.array([[2/shape[1], 0, -1], [0, 2/shape[0], -1], [0, 0, 1]])
     extend_p1 = np.dot(T1, extend_p1.T)
     extend_p0 = np.dot(T1, extend_p0.T)
     disparity = abs((extend_p1.T @ f) @ extend_p0)
@@ -122,7 +125,7 @@ def GetRowOf_F(a, b):
 def compute_fundamental(x1,x2):
     arr = []
     for i in range(len(x1)):
-        arr.append(GetRowOf_F(x1[:,i], x2[:,i]))
+        arr.append(GetRowOf_F(x1[i], x2[i]))
 
     U, S, V = np.linalg.svd(np.array(arr))
     F = np.reshape(V[-1], (3, 3))
@@ -133,33 +136,33 @@ def compute_fundamental(x1,x2):
     F /= F[-1, -1]
 
     return F
-    """
-    Computes the fundamental matrix from corresponding points 
-    (x1,x2 3*n arrays) using the 8 point algorithm.
-    Each row in the A matrix below is constructed as
-    [x'*x, x'*y, x', y'*x, y'*y, y', x, y, 1]
-    """    
-    n = x1.shape[1]
-       
-    # build matrix for equations
-    A = np.zeros((n,9))
-    for i in range(n):
-        A[i] = [x1[0,i]*x2[0,i], x1[0,i]*x2[1,i], x1[0,i]*x2[2,i],
-                x1[1,i]*x2[0,i], x1[1,i]*x2[1,i], x1[1,i]*x2[2,i],
-                x1[2,i]*x2[0,i], x1[2,i]*x2[1,i], x1[2,i]*x2[2,i] ]
-            
-    # compute linear least square solution
-    U,S,V = np.linalg.svd(A)
-    F = V[-1].reshape(3,3)
-        
-    # constrain F
-    # make rank 2 by zeroing out last singular value
-    U,S,V = np.linalg.svd(F)
-    S[2] = 0
-    F = np.dot(U,np.dot(np.diag(S),V))
-
+#     """
+#     Computes the fundamental matrix from corresponding points 
+#     (x1,x2 3*n arrays) using the 8 point algorithm.
+#     Each row in the A matrix below is constructed as
+#     [x'*x, x'*y, x', y'*x, y'*y, y', x, y, 1]
+#     """    
+#     n = x1.shape[1]
+#        
+#     # build matrix for equations
+#     A = np.zeros((n,9))
+#     for i in range(n):
+#         A[i] = [x1[0,i]*x2[0,i], x1[0,i]*x2[1,i], x1[0,i]*x2[2,i],
+#                 x1[1,i]*x2[0,i], x1[1,i]*x2[1,i], x1[1,i]*x2[2,i],
+#                 x1[2,i]*x2[0,i], x1[2,i]*x2[1,i], x1[2,i]*x2[2,i] ]
+#             
+#     # compute linear least square solution
+#     U,S,V = np.linalg.svd(A)
+#     F = V[-1].reshape(3,3)
+#         
+#     # constrain F
+#     # make rank 2 by zeroing out last singular value
+#     U,S,V = np.linalg.svd(F)
+#     S[2] = 0
+#     F = np.dot(U,np.dot(np.diag(S),V))
+# 
 #     return F/F[2,2]
-    return F
+#     return F
 
 
 def compute_fundamental_normalized(x1, x2, shape):
@@ -170,10 +173,10 @@ def compute_fundamental_normalized(x1, x2, shape):
     # n = x1.shape[1]
 
     # extend x1, x2
-    x1_padding = np.ones((x1.shape[0], 3))
-    x1_padding[:, :-1] = x1
-    x2_padding = np.ones((x1.shape[0], 3))
-    x2_padding[:, :-1] = x2
+#     x1_padding = np.ones((x1.shape[0], 3))
+#     x1_padding[:, :-1] = x1
+#     x2_padding = np.ones((x1.shape[0], 3))
+#     x2_padding[:, :-1] = x2
 
     # normalize image coordinates
     # x1 = x1 / x1[2]
@@ -181,31 +184,46 @@ def compute_fundamental_normalized(x1, x2, shape):
     # S1 = np.sqrt(2) / np.std(x1[:2])
     # T1 = np.array([[S1,0,-S1*mean_1[0]],[0,S1,-S1*mean_1[1]],[0,0,1]])
     # x1 = np.dot(T1,x1)
-    T1 = np.array([[2/shape[0], 0, -1], [0, 2/shape[1], -1], [0, 0, 1]])
-    x1_padding = np.dot(T1, x1_padding.T)
-    x2_padding = np.dot(T1, x2_padding.T)
+#     T1 = np.array([[2/shape[1], 0, -1], [0, 2/shape[0], -1], [0, 0, 1]])
+#     x1_padding = np.dot(T1, x1_padding.T)
+#     x2_padding = np.dot(T1, x2_padding.T)
 
     # compute F with the normalized coordinates
-    F = compute_fundamental(x1_padding, x2_padding)
+    F = compute_fundamental(x1, x2)
 
     # reverse normalization
 #     F = T1.T @ F @ T1
 
 #     return F/F[2,2]
-    return F, T1
+    return F
+
+def compute_normalize_point(pt, matrix):
+    corr = []
+    for i in pt:
+        cood = np.atleast_2d(np.array([i[0], i[1], 1])).T
+        cood = matrix @ cood
+        cood = cood.flatten()
+        corr.append(cood)
+    return np.array(corr)
 
 
 def RANSAC_fundamental(match_points_0, match_points_1, shape):
     max_inliers = []
     # max_inlier_h = None
     max_inlier_f = None
+    T1 = np.array([[2/shape[1], 0, -1], [0, 2/shape[0], -1], [0, 0, 1]])
+    print("match_points_0.shape:")
+
+    print(T1.shape)
+    normal_p0 = compute_normalize_point(match_points_0, T1)
+    normal_p1 = compute_normalize_point(match_points_1, T1)
+
     for i in range(1000):
-        idx = np.random.randint(0, len(match_points_0), 60)
-        f, T1 = compute_fundamental_normalized(match_points_0[idx], match_points_1[idx], shape)
-#         print('f:', f)
+        idx = np.random.randint(0, len(normal_p0), 60)
+        f = compute_fundamental_normalized(normal_p0[idx], normal_p1[idx], shape)
 
         inliers = []
-        for p0, p1 in zip(match_points_0, match_points_1):
+        for p0, p1 in zip(normal_p0, normal_p1):
             d = geometricDistance(p0, p1, f, shape)
 #             print('d:', d)
             if d < 0.01:
@@ -215,8 +233,8 @@ def RANSAC_fundamental(match_points_0, match_points_1, shape):
             max_inliers = inliers
             # max_inlier_h = h
             max_inlier_f = f
-    T1 = np.array([[2/shape[0], 0, -1], [0, 2/shape[1], -1], [0, 0, 1]])
     max_inlier_f = T1.T @ max_inlier_f @ T1
+    max_inlier_f /= max_inlier_f[-1, -1]
 
     return max_inlier_f, np.array(max_inliers)
 
