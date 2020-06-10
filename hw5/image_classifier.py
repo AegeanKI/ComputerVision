@@ -77,17 +77,17 @@ class knn():
             result_label = np.append(result_label, result)
         return result_label
 
-    def calculate_accuracy(self, result_label, test_label):
+    def calculate_accuracy(self, predict_label, test_label):
         correct = 0
-        for i in range(result_label.shape[0]):
-            if result_label[i] == test_label[i]:
+        for i in range(predict_label.shape[0]):
+            if predict_label[i] == test_label[i]:
                 correct += 1
-        return correct / result_label.shape[0]
+        return correct / predict_label.shape[0]
 
     def knn_process(self, train_data, train_label, test_data, test_label):
         distance_matrix = self.gen_distance_matrix(train_data, test_data)
-        result_label = self.vote_for_k_neighbors(distance_matrix, train_label)
-        return result_label
+        predict_label = self.vote_for_k_neighbors(distance_matrix, train_label)
+        return predict_label
             
 
 if __name__ == "__main__":
@@ -97,7 +97,8 @@ if __name__ == "__main__":
     # print('test_image: ', test_img.shape)
     # print('test_label: ', test_label.shape)
 
-    KNN_Model = knn(8)
-    result = KNN_Model.knn_process(train_img, train_label, test_img, test_label)
-    accuracy = KNN_Model.calculate_accuracy(result, test_label)
-    print('accuracy: {}%'.format(accuracy*100))
+    for k in range(1, 22):
+        KNN_Model = knn(k)
+        predict = KNN_Model.knn_process(train_img, train_label, test_img, test_label)
+        accuracy = KNN_Model.calculate_accuracy(predict, test_label)
+        print('for k={}, accuracy: {}%'.format(k, accuracy*100))
