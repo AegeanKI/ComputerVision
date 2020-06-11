@@ -19,7 +19,13 @@ def generate_data(path):
             print('img: ', img)
             img_data = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
             resize_img_data = cv2.resize(img_data, (16, 16)).flatten()
-            data = np.vstack((data, resize_img_data))
+            
+            # normalize image data
+            mean = np.mean(resize_img_data)
+            var = np.var(resize_img_data)
+            normalized_data = (resize_img_data - mean) / var
+
+            data = np.vstack((data, normalized_data))
             label = np.append(label, dir)
             print('data shape: ', data.shape)
             print('label shape: ', label.shape)
@@ -55,7 +61,7 @@ def load_data(data_dir):
     return train_image, train_label, test_image, test_label
 
 
-class knn():
+class KNN():
     def __init__(self, k):
         self.k = k
 
@@ -98,7 +104,7 @@ if __name__ == "__main__":
     # print('test_label: ', test_label.shape)
 
     for k in range(1, 22):
-        KNN_Model = knn(k)
-        predict = KNN_Model.knn_process(train_img, train_label, test_img, test_label)
-        accuracy = KNN_Model.calculate_accuracy(predict, test_label)
+        knn_Model = KNN(k)
+        predict = knn_Model.knn_process(train_img, train_label, test_img, test_label)
+        accuracy = knn_Model.calculate_accuracy(predict, test_label)
         print('for k={}, accuracy: {}%'.format(k, accuracy*100))
