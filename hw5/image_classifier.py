@@ -270,6 +270,6 @@ if __name__ == "__main__":
 
     for k in range(1, 22):
         knn_Model = KNN(k)
-        predict = knn_Model.knn_process(train_img, train_label, test_img)
-        accuracy = knn_Model.calculate_accuracy(predict, test_label)
+        predict = knn_Model.knn_process(bag_train_img, bag_train_label, bag_test_img)
+        accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
         print('for k={}, accuracy: {}%'.format(k, accuracy*100))
