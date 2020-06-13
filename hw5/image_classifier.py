@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import random
 import glob
 import vlfeat
+from libsvm.svmutil import *
 
 
 def generate_data(path, normalize=True):
@@ -126,7 +127,7 @@ class BagOfSift():
         print('centers: ', centers.shape)
         # print(centers.T)
         print('labels: ', labels.shape)
-        # print(labels)     
+        # print(labels)
         return labels, centers
 
     
@@ -147,7 +148,7 @@ class BagOfSift():
         print('nearest_center: ', nearest_center.shape)
 
         # build histogram indicating how many times each cluster was used
-        voc_labels = np.arange(voc_centers.shape[0]) # voc is 0~49
+        voc_labels = np.arange(voc_centers.shape[0]) # voc is 0~(k-1)
         hist, bin_edges = np.histogram(nearest_center, bins=voc_labels)
         print('hist: ', hist.shape)
         return hist
@@ -212,6 +213,20 @@ class KNN():
         distance_matrix = self.gen_distance_matrix(train_data, test_data)
         predict_label = self.vote_for_k_neighbors(distance_matrix, train_label)
         return predict_label
+
+
+class SVM():
+    def __init__(self):
+        pass
+
+    def train_with_linear_kernel(self, y, x, y_test, x_test):
+        param = '-t 0 -h 0'
+        model = svm_train(y, x, param)
+
+        print('test:')
+        p_label, p_acc, p_val = svm_predict(y_test, x_test, model)
+        p_label = np.array(p_label)
+        return p_label, p_acc
             
 
 if __name__ == "__main__":
@@ -229,22 +244,66 @@ if __name__ == "__main__":
 
 
     """
-    2. Bag of SIFT representation + neighbor classifier
+    2. Bag of SIFT representation + nearest neighbor classifier
 
     Uncomment following code to run.
     """
-    # if we use the normalize data, the sift_keypoints will be None @@
-    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), normalize=False)
+    # # if we use the normalize data, the sift_keypoints will be None @@
+    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), normalize=False)
     
-    bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
-    bag_train_img, bag_train_label, bag_test_img, bag_test_label = bag_sift_Model.main_process()
-    print('bag_train_img: ', bag_train_img.shape)
-    print('bag_train_label: ', bag_train_label.shape)
-    print('bag_test_img: ', bag_test_img.shape)
-    print('bag_test_label: ', bag_test_label.shape)
+    # bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
+    # bag_train_img, bag_train_label, bag_test_img, bag_test_label = bag_sift_Model.main_process()
+    # print('bag_train_img: ', bag_train_img.shape)
+    # print('bag_train_label: ', bag_train_label.shape)
+    # print('bag_test_img: ', bag_test_img.shape)
+    # print('bag_test_label: ', bag_test_label.shape)
 
-    for k in range(1, 22):
-        knn_Model = KNN(k)
-        predict = knn_Model.knn_process(bag_train_img, bag_train_label, bag_test_img)
-        accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
-        print('for k={}, accuracy: {}%'.format(k, accuracy*100))
+    # for k in range(1, 22):
+    #     knn_Model = KNN(k)
+    #     predict = knn_Model.knn_process(bag_train_img, bag_train_label, bag_test_img)
+    #     accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
+    #     print('for k={}, accuracy: {}%'.format(k, accuracy*100))
+
+
+    """
+    3. Bag of SIFT representation + linear SVM classifier
+
+    Uncomment following code to run.
+    """
+    label_dict = {
+        'Bedroom': 0,
+        'Coast': 1, 
+        'Forest': 2, 
+        'Highway': 3, 
+        'Industrial': 4, 
+        'InsideCity': 5, 
+        'Kitchen': 6, 
+        'LivingRoom': 7, 
+        'Mountain': 8, 
+        'Office': 9, 
+        'OpenCountry': 10, 
+        'Store': 11, 
+        'Street': 12, 
+        'Suburb': 13, 
+        'TallBuilding': 14
+    }
+    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), normalize=False)
+
+    # turn string label into int label
+    train_label_int = []
+    for str_label in train_label:
+        train_label_int.append(int(label_dict[str_label]))
+    
+    test_label_int = []
+    for str_label in test_label:
+        test_label_int.append(int(label_dict[str_label]))
+
+    train_label_int = np.array(train_label_int)
+    test_label_int = np.array(test_label_int)
+    
+
+    bag_sift_Model = BagOfSift(train_img, train_label_int, test_img, train_label_int)
+    bag_train_img, bag_train_label, bag_test_img, bag_test_label = bag_sift_Model.main_process()
+
+    svm_Model = SVM()
+    predict, accuracy = svm_Model.train_with_linear_kernel(bag_train_label, bag_train_img, bag_test_label, bag_test_img)
