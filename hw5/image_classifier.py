@@ -121,7 +121,7 @@ class BagOfSift():
 
         # kmeans
         # define stopping criteria
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 0.2)
         k = 1000
         _, labels, centers = cv2.kmeans(np.float32(sift_keypoints), k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         print('centers: ', centers.shape)
@@ -148,8 +148,8 @@ class BagOfSift():
         print('nearest_center: ', nearest_center.shape)
 
         # build histogram indicating how many times each cluster was used
-        voc_labels = np.arange(voc_centers.shape[0]) # voc is 0~(k-1)
-        hist, bin_edges = np.histogram(nearest_center, bins=voc_labels)
+        # voc_labels = np.arange(voc_centers.shape[0]) # voc is 0~(k-1)
+        hist, bin_edges = np.histogram(nearest_center, bins=voc_centers.shape[0])
         print('hist: ', hist.shape)
         return hist
 
