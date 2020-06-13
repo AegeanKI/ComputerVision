@@ -121,7 +121,7 @@ class BagOfSift():
         # kmeans
         # define stopping criteria
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.2)
-        k = 50
+        k = 1000
         _, labels, centers = cv2.kmeans(np.float32(sift_keypoints), k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
         print('centers: ', centers.shape)
         # print(centers.T)
@@ -215,53 +215,28 @@ class KNN():
             
 
 if __name__ == "__main__":
+    """
+    1. Tiny images representation + nearest neighbor classifier
+
+    Uncomment following code to run.
+    """
     # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'))
-    # print('train_image: ', train_img.shape)
-    # print('train_label: ', train_label.shape)
-    # print('test_image: ', test_img.shape)
-    # print('test_label: ', test_label.shape)
+    # for k in range(1, 22):
+    #     knn_Model = KNN(k)
+    #     predict = knn_Model.knn_process(train_img, train_label, test_img)
+    #     accuracy = knn_Model.calculate_accuracy(predict, test_label)
+    #     print('for k={}, accuracy: {}%'.format(k, accuracy*100))
 
-    '''
-    for k in range(1, 22):
-        knn_Model = KNN(k)
-        predict = knn_Model.knn_process(train_img, train_label, test_img)
-        accuracy = knn_Model.calculate_accuracy(predict, test_label)
-        print('for k={}, accuracy: {}%'.format(k, accuracy*100))
-    '''
+
+    """
+    2. Bag of SIFT representation + neighbor classifier
+
+    Uncomment following code to run.
+    """
+    # if we use the normalize data, the sift_keypoints will be None @@
     train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), normalize=False)
-
-    # print(train_img[0])
-    # exit(0)
-    '''
-    path = os.path.join(os.path.dirname(__file__), 'hw5_data/')
-    training_path = os.path.join(path, 'train/')
-    
-    dir_list = os.listdir(training_path)
-    print('dir_list: ', dir_list)
-
-    sift_keypoints = []
-    for dir in dir_list:
-        print('---start reading img data in {}---'.format(dir))
-        for img in glob.glob(training_path + dir + '/*.*'):
-            print('img: ', img)
-            img_data = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
-            resize_img_data = cv2.resize(img_data, (16, 16))
-            print(resize_img_data)
-            exit(0)
-            
-            sift = cv2.xfeatures2d.SIFT_create()
-            kp, descriptors = sift.detectAndCompute(resize_img_data, None)
-            print('descriptors: {}'.format(descriptors))
-            # append the descriptors to a list of descriptors
-            sift_keypoints.append(descriptors)
-
-    sift_keypoints=np.array(sift_keypoints)
-    sift_keypoints=np.concatenate(sift_keypoints, axis=0)
-    print(sift_keypoints.shape)
-    '''
     
     bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
-    # labels, centers = bag_sift_Model.build_vocabulary()
     bag_train_img, bag_train_label, bag_test_img, bag_test_label = bag_sift_Model.main_process()
     print('bag_train_img: ', bag_train_img.shape)
     print('bag_train_label: ', bag_train_label.shape)
