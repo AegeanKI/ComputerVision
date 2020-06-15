@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 import glob
-import vlfeat
+from cyvlfeat.kmeans import kmeans
 from libsvm.svmutil import *
 
 
@@ -123,12 +123,10 @@ class BagOfSift():
         # define stopping criteria
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 0.2)
         k = 1000
-        _, labels, centers = cv2.kmeans(np.float32(sift_keypoints), k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+        centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
         # print(centers.T)
-        print('labels: ', labels.shape)
-        # print(labels)
-        return labels, centers
+        return centers
 
     
     def calculate_centroid_histogram(self, voc_centers, img_data):
@@ -154,7 +152,7 @@ class BagOfSift():
         return hist
 
     def main_process(self):
-        _, voc = self.build_vocabulary()
+        voc = self.build_vocabulary()
         train_hist = []
         available_train_lable = []
         for i in range(self.train_data.shape[0]):
