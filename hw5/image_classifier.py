@@ -10,6 +10,7 @@ from libsvm.svmutil import *
 
 
 def generate_data(path, resize=False, normalize=True):
+    # resize=False will broke, because img size are not all the same
     dir_list = os.listdir(path)
     print('dir_list: ', dir_list)
 
@@ -54,7 +55,7 @@ def load_data(data_dir, resize=False, normalize=True):
         train_image = np.load(generated_data_path+'train_image.npy')
         train_label = np.load(generated_data_path+'train_label.npy')
     else:
-        train_image, train_label = generate_data(training_path, resize, normaliza)
+        train_image, train_label = generate_data(training_path, resize, normalize)
         np.save(generated_data_path+'train_image', train_image)
         np.save(generated_data_path+'train_label', train_label)
 
@@ -102,7 +103,6 @@ class BagOfSift():
 
         # kmeans
         # define stopping criteria
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 0.2)
         k = 1000
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
