@@ -14,10 +14,7 @@ def generate_data(path, resize=False, normalize=True):
     dir_list = os.listdir(path)
     print('dir_list: ', dir_list)
     
-    if resize:
-        data = np.zeros((1, 256))
-    else:
-        data = []
+    data = []
     label = np.array([])
     for dir in dir_list:
         print('---start reading img data in {}---'.format(dir))
@@ -26,7 +23,7 @@ def generate_data(path, resize=False, normalize=True):
             print('img: ', img)
             img_data = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
             if resize:
-                img_data = cv2.resize(img_data, (16, 16)).flatten()
+                img_data = cv2.resize(img_data, (resize, resize))
 
             if normalize:
                 # normalize image data
@@ -34,10 +31,7 @@ def generate_data(path, resize=False, normalize=True):
                 var = np.var(img_data)
                 img_data = (img_data - mean) / var
 
-            if resize:
-                data = np.vstack((data, img_data))
-            else:
-                data.append(np.array(img_data))
+            data.append(np.array(img_data))
             label = np.append(label, dir)
             print('data lenth: ', len(data))
             print('data shape: ', data[i].shape)
@@ -50,32 +44,34 @@ def load_data(data_dir, resize=False, normalize=True):
     training_path = os.path.join(data_dir, 'train/')
     testing_path = os.path.join(data_dir, 'test/')
 
-    generate_data_path = None
-    if normalize:
-        generated_data_path = os.path.join(os.path.dirname(__file__), 'generated_numpy_data/')
-    else:
-        generated_data_path = os.path.join(os.path.dirname(__file__), 'generated_unnorm_numpy_data/')
+    train_image, train_label = generate_data(training_path, resize, normalize)
+    test_image, test_label = generate_data(testing_path, resize, normalize)
+    # generate_data_path = None
+    # if normalize:
+    #     generated_data_path = os.path.join(os.path.dirname(__file__), 'generated_numpy_data/')
+    # else:
+    #     generated_data_path = os.path.join(os.path.dirname(__file__), 'generated_unnorm_numpy_data/')
 
-    if os.path.isdir(generated_data_path) == False:
-        os.mkdir(generated_data_path)
+    # if os.path.isdir(generated_data_path) == False:
+    #     os.mkdir(generated_data_path)
 
-    # Read data from training files
-    if os.path.exists(generated_data_path+'train_image.npy') and os.path.exists(generated_data_path+'train_label.npy'):
-        train_image = np.load(generated_data_path+'train_image.npy')
-        train_label = np.load(generated_data_path+'train_label.npy')
-    else:
-        train_image, train_label = generate_data(training_path, resize, normalize)
-        np.save(generated_data_path+'train_image', train_image)
-        np.save(generated_data_path+'train_label', train_label)
+    # #  Read data from training files
+    # if os.path.exists(generated_data_path+'train_image.npy') and os.path.exists(generated_data_path+'train_label.npy'):
+    #     train_image = np.load(generated_data_path+'train_image.npy')
+    #     train_label = np.load(generated_data_path+'train_label.npy')
+    # else:
+    #     train_image, train_label = generate_data(training_path, resize, normalize)
+    #     np.save(generated_data_path+'train_image', train_image)
+    #     np.save(generated_data_path+'train_label', train_label)
 
-    # Read data from testing files
-    if os.path.exists(generated_data_path+'test_image.npy') and os.path.exists(generated_data_path+'test_label.npy'):
-        test_image = np.load(generated_data_path+'test_image.npy')
-        test_label = np.load(generated_data_path+'test_label.npy')
-    else:
-        test_image, test_label = generate_data(testing_path, resize, normalize)
-        np.save(generated_data_path+'test_image', test_image)
-        np.save(generated_data_path+'test_label', test_label)
+    # # Read data from testing files
+    # if os.path.exists(generated_data_path+'test_image.npy') and os.path.exists(generated_data_path+'test_label.npy'):
+    #     test_image = np.load(generated_data_path+'test_image.npy')
+    #     test_label = np.load(generated_data_path+'test_label.npy')
+    # else:
+    #     test_image, test_label = generate_data(testing_path, resize, normalize)
+    #     np.save(generated_data_path+'test_image', test_image)
+    #     np.save(generated_data_path+'test_label', test_label)
 
     return train_image, train_label, test_image, test_label
 
@@ -182,9 +178,9 @@ class KNN():
     def gen_distance_matrix(self, train_data, test_data):
         # print("train data shape:",train_data.shape)
         # print("test data shape:",test_data.shape)
-        distance_matrix = np.zeros((test_data.shape[0], train_data.shape[0])) # (150, 1500)
-        for i in range(test_data.shape[0]):
-            for j in range(train_data.shape[0]):
+        distance_matrix = np.zeros((len(test_data), len(train_data))) # (150, 1500)
+        for i in range(len(test_data)):
+            for j in range(len(train_data)):
                 distance_matrix[i][j] = np.linalg.norm(test_data[i] - train_data[j])
         return distance_matrix
 
@@ -234,7 +230,7 @@ if __name__ == "__main__":
 
     Uncomment following code to run.
     """
-    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=True, normalize=True)
+    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=16, normalize=True)
     # for k in range(1, 22):
     #     knn_Model = KNN(k)
     #     predict = knn_Model.knn_process(train_img, train_label, test_img)
@@ -248,7 +244,7 @@ if __name__ == "__main__":
     Uncomment following code to run.
     """
     # if we use the normalize data, the sift_keypoints will be None @@
-    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
+    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=32, normalize=False)
     train_img = np.array(train_img)
     bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
     bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
