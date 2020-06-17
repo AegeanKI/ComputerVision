@@ -145,7 +145,7 @@ class BagOfSift():
         voc = self.build_vocabulary()
         train_hist = []
         available_train_lable = []
-        for i in range(self.train_data.shape[0]):
+        for i in range(len(self.train_data)):
             each_train_hist = self.calculate_centroid_histogram(voc, self.train_data[i])
             if each_train_hist is not None:
                 train_hist.append(each_train_hist)
@@ -155,7 +155,7 @@ class BagOfSift():
 
         test_hist = []
         available_test_lable = []
-        for i in range(self.test_data.shape[0]):
+        for i in range(len(self.test_data)):
             each_test_hist = self.calculate_centroid_histogram(voc, self.test_data[i])
             if each_test_hist is not None:
                 test_hist.append(each_test_hist)
