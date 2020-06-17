@@ -115,7 +115,7 @@ class BagOfSift():
         print("descriptors",sift_keypoints.shape[0])
         # kmeans
         # define K centers, which is K vocabulary
-        k = 100
+        k = 50
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
         # print(centers.T)
@@ -133,7 +133,10 @@ class BagOfSift():
         for i, point in enumerate(sift_keypoints):
             distance = np.array([])
             for voc in voc_centers:
-                distance = np.append(distance, (np.linalg.norm(point - voc)))
+                d = np.linalg.norm(point - voc)
+                distance = np.append(distance, d)
+                if d == 0:
+                    break
             # record the least distance center
             nearest_center[i] = np.argmin(distance)
         # print('sift_keypoint: ', sift_keypoints.shape)
