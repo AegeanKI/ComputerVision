@@ -10,7 +10,6 @@ from libsvm.svmutil import *
 
 
 def generate_data(path, resize=False, normalize=True):
-    # resize=False will broke, because img size are not all the same
     dir_list = os.listdir(path)
     print('dir_list: ', dir_list)
     
@@ -99,19 +98,24 @@ class BagOfSift():
     def build_vocabulary(self):
         # sift
         sift_keypoints = []
-        for i in range(self.train_data.shape[0]): # for each img
+        N_each = 10000 // len(self.train_data)
+        print(N_each)
+        for i in range(len(self.train_data)): # for each img
             descriptors = self.sift_keypoints(self.train_data[i])
             if descriptors is not None:
                 print('{}: descriptors: {}'.format(i, descriptors.shape))
-                sift_keypoints.append(descriptors)
+                if descriptors.shape[0] > N_each:
+                    idx = np.random.choice(descriptors.shape[0], N_each)
+                    sift_keypoints.append(descriptors[idx])
+                else:
+                    sift_keypoints.append(descriptors)
         sift_keypoints=np.array(sift_keypoints)
         sift_keypoints=np.concatenate(sift_keypoints, axis=0)
 
         print("descriptors",sift_keypoints.shape[0])
         # kmeans
-        # define stopping criteria
-        # define K  centers, which is K vocabulary
-        k = 1000
+        # define K centers, which is K vocabulary
+        k = 100
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
         # print(centers.T)
@@ -136,7 +140,7 @@ class BagOfSift():
         print('nearest_center shape: ', nearest_center.shape)
 
         # build histogram indicating how many times each cluster was used
-        voc_labels = np.arange(0,voc_centers.shape[0]+1) # voc is 0~(k-1)
+        voc_labels = np.arange(voc_centers.shape[0]+1) # voc is 0~(k-1)
         hist, bin_edges = np.histogram(nearest_center, bins=voc_labels)
         # print('hist shape: ', hist.shape)
         return hist
@@ -146,6 +150,7 @@ class BagOfSift():
         train_hist = []
         available_train_lable = []
         for i in range(len(self.train_data)):
+            print(f'train: {i}/{len(self.train_data)} ', end='')
             each_train_hist = self.calculate_centroid_histogram(voc, self.train_data[i])
             if each_train_hist is not None:
                 train_hist.append(each_train_hist)
@@ -156,6 +161,7 @@ class BagOfSift():
         test_hist = []
         available_test_lable = []
         for i in range(len(self.test_data)):
+            print(f'test: {i}/{len(self.test_data)} ', end='')
             each_test_hist = self.calculate_centroid_histogram(voc, self.test_data[i])
             if each_test_hist is not None:
                 test_hist.append(each_test_hist)
@@ -244,7 +250,7 @@ if __name__ == "__main__":
     Uncomment following code to run.
     """
     # if we use the normalize data, the sift_keypoints will be None @@
-    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=32, normalize=False)
+    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
     train_img = np.array(train_img)
     bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
     bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
