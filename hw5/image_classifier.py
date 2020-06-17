@@ -15,14 +15,10 @@ import time
 
 
 def generate_data(path, resize=False, normalize=True):
-    # resize=False will broke, because img size are not all the same
     dir_list = os.listdir(path)
     print('dir_list: ', dir_list)
     
-    if resize:
-        data = np.zeros((1, 256))
-    else:
-        data = []
+    data = []
     label = np.array([])
     for dir in dir_list:
         print('---start reading img data in {}---'.format(dir))
@@ -31,7 +27,7 @@ def generate_data(path, resize=False, normalize=True):
             print('img: ', img)
             img_data = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
             if resize:
-                img_data = cv2.resize(img_data, (16, 16)).flatten()
+                img_data = cv2.resize(img_data, (resize, resize))
 
             if normalize:
                 # normalize image data
@@ -39,10 +35,7 @@ def generate_data(path, resize=False, normalize=True):
                 var = np.var(img_data)
                 img_data = (img_data - mean) / var
 
-            if resize:
-                data = np.vstack((data, img_data))
-            else:
-                data.append(np.array(img_data))
+            data.append(np.array(img_data))
             label = np.append(label, dir)
             print('data lenth: ', len(data))
             print('data shape: ', data[i].shape)
@@ -126,9 +119,8 @@ class BagOfSift():
 
         print("descriptors",sift_keypoints.shape[0])
         # kmeans
-        # define stopping criteria
-        # define K  centers, which is K vocabulary
-        k = 100
+        # define K centers, which is K vocabulary
+        k = 50
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
         # print(centers.T)
@@ -156,7 +148,7 @@ class BagOfSift():
         print('nearest_center shape: ', nearest_center.shape)
 
         # build histogram indicating how many times each cluster was used
-        voc_labels = np.arange(0,voc_centers.shape[0]+1) # voc is 0~(k-1)
+        voc_labels = np.arange(voc_centers.shape[0]+1) # voc is 0~(k-1)
         hist, bin_edges = np.histogram(nearest_center, bins=voc_labels)
         # print('hist shape: ', hist.shape)
         return hist
@@ -195,7 +187,6 @@ class BagOfSift():
         voc = self.build_vocabulary()
         train_hist = []
         available_train_lable = []
-
         # Try to use multi process to run faster
         futures = []
         max = 30
@@ -245,6 +236,7 @@ class BagOfSift():
         #     if each_test_hist is not None:
         #         test_hist.append(each_test_hist)
         #         available_test_lable.append(self.test_label[i])
+
         test_hist=np.array(test_hist)
         # available_test_lable = np.array(available_test_lable)
         available_test_lable = self.test_label
@@ -319,7 +311,7 @@ if __name__ == "__main__":
 
     Uncomment following code to run.
     """
-    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=True, normalize=True)
+    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=16, normalize=True)
     # for k in range(1, 22):
     #     knn_Model = KNN(k)
     #     predict = knn_Model.knn_process(train_img, train_label, test_img)
