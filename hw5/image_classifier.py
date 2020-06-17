@@ -120,7 +120,7 @@ class BagOfSift():
         print("descriptors",sift_keypoints.shape[0])
         # kmeans
         # define K centers, which is K vocabulary
-        k = 50
+        k = 100
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
         # print(centers.T)
@@ -253,6 +253,10 @@ class KNN():
     def __init__(self, k):
         self.k = k
 
+    def chi_sqr(self,h1,h2):
+        d = 0.5 * np.sum([((a - b)**2 ) for (a,b) in zip(h1,h2)])
+        return d
+
     def gen_distance_matrix(self, train_data, test_data, Hist):
         # print("train data shape:",train_data.shape)
         # print("test data shape:",test_data.shape)
@@ -260,7 +264,12 @@ class KNN():
         for i in range(test_data.shape[0]):
             for j in range(train_data.shape[0]):
                 if Hist:
-                    distance_matrix[i][j] = cv2.compareHist(test_data[i], train_data[j],cv2.HISTCMP_CHISQR)
+                    # print("test:",test_data[i].ravel().astype('float32'))
+                    # print("test_size",len(test_data[i]))
+                    # print("train:",train_data[j])
+                    # print("train_size",len(train_data[j]))
+                    distance_matrix[i][j] = cv2.compareHist(test_data[i].flatten().astype('float32'), train_data[j].flatten().astype('float32'),cv2.HISTCMP_CHISQR)
+                    # distance_matrix[i][j] = self.chi_sqr(test_data[i],train_data[j])
                 else: 
                     distance_matrix[i][j] = np.linalg.norm(test_data[i] - train_data[j] )
         return distance_matrix
