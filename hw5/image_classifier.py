@@ -13,11 +13,15 @@ def generate_data(path, resize=False, normalize=True):
     # resize=False will broke, because img size are not all the same
     dir_list = os.listdir(path)
     print('dir_list: ', dir_list)
-
-    data = np.zeros((1, 256))
+    
+    if resize:
+        data = np.zeros((1, 256))
+    else:
+        data = []
     label = np.array([])
     for dir in dir_list:
         print('---start reading img data in {}---'.format(dir))
+        i = 0
         for img in glob.glob(path + dir + '/*.*'):
             print('img: ', img)
             img_data = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
@@ -30,10 +34,15 @@ def generate_data(path, resize=False, normalize=True):
                 var = np.var(img_data)
                 img_data = (img_data - mean) / var
 
-            data = np.vstack((data, img_data))
+            if resize:
+                data = np.vstack((data, img_data))
+            else:
+                data.append(np.array(img_data))
             label = np.append(label, dir)
-            print('data shape: ', data.shape)
+            print('data lenth: ', len(data))
+            print('data shape: ', data[i].shape)
             print('label shape: ', label.shape)
+            i += 1
     return data[1:], label
 
 
@@ -73,9 +82,9 @@ def load_data(data_dir, resize=False, normalize=True):
 
 class BagOfSift():
     def __init__(self, train_data, train_label, test_data, test_label):
-        self.train_data = train_data.astype(np.uint8)
+        self.train_data = train_data
         self.train_label = train_label
-        self.test_data = test_data.astype(np.uint8)
+        self.test_data = test_data
         self.test_label = test_label
         # self.train_data = train_data
         # print(np.dtype(self.train_data))
@@ -84,7 +93,8 @@ class BagOfSift():
     def sift_keypoints(self, data):
         # SIFT extraction
         # print(data[i])
-        img_data = np.reshape(data, (16, 16))
+        # img_data = np.reshape(data, (16, 16))
+        img_data = data
         sift = cv2.xfeatures2d.SIFT_create()
         kp, descriptors = sift.detectAndCompute(img_data, None)
         return descriptors
@@ -101,8 +111,10 @@ class BagOfSift():
         sift_keypoints=np.array(sift_keypoints)
         sift_keypoints=np.concatenate(sift_keypoints, axis=0)
 
+        print("descriptors",sift_keypoints.shape[0])
         # kmeans
         # define stopping criteria
+        # define K  centers, which is K vocabulary
         k = 1000
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
@@ -122,14 +134,15 @@ class BagOfSift():
             distance = np.array([])
             for voc in voc_centers:
                 distance = np.append(distance, (np.linalg.norm(point - voc)))
+            # record the least distance center
             nearest_center[i] = np.argmin(distance)
         # print('sift_keypoint: ', sift_keypoints.shape)
-        print('nearest_center: ', nearest_center.shape)
+        print('nearest_center shape: ', nearest_center.shape)
 
         # build histogram indicating how many times each cluster was used
-        # voc_labels = np.arange(voc_centers.shape[0]) # voc is 0~(k-1)
-        hist, bin_edges = np.histogram(nearest_center, bins=voc_centers.shape[0])
-        print('hist: ', hist.shape)
+        voc_labels = np.arange(0,voc_centers.shape[0]+1) # voc is 0~(k-1)
+        hist, bin_edges = np.histogram(nearest_center, bins=voc_labels)
+        # print('hist shape: ', hist.shape)
         return hist
 
     def main_process(self):
@@ -153,10 +166,13 @@ class BagOfSift():
                 available_test_lable.append(self.test_label[i])
         test_hist=np.array(test_hist)
         available_test_lable = np.array(available_test_lable)
-        print('train_hist: ', train_hist.shape)
-        print('test_hist: ', test_hist.shape)
+        # print('train_hist: ', train_hist.shape)
+        # print('train label:', available_train_lable.shape)
+        # print('test_hist: ', test_hist.shape)
+        # print('test label:', available_test_lable.shape)
         print('\n')
         return train_hist, available_train_lable, test_hist, available_test_lable        
+
 
 
 class KNN():
@@ -164,6 +180,8 @@ class KNN():
         self.k = k
 
     def gen_distance_matrix(self, train_data, test_data):
+        # print("train data shape:",train_data.shape)
+        # print("test data shape:",test_data.shape)
         distance_matrix = np.zeros((test_data.shape[0], train_data.shape[0])) # (150, 1500)
         for i in range(test_data.shape[0]):
             for j in range(train_data.shape[0]):
@@ -177,7 +195,9 @@ class KNN():
             sort_k_idx = np.argsort(distance_matrix[i])
             k_neighbors_label = list(train_label[sort_k_idx[:self.k]])
             # find most frequent label
+            # print("k_neighbors_label: ",k_neighbors_label)
             result = max(set(k_neighbors_label), key = k_neighbors_label.count)
+            # print("result (most label in K): ",result)
             result_label = np.append(result_label, result)
         return result_label
 
@@ -227,21 +247,21 @@ if __name__ == "__main__":
 
     Uncomment following code to run.
     """
-    # # if we use the normalize data, the sift_keypoints will be None @@
-    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=True, normalize=False)
-    
-    # bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
-    # bag_train_img, bag_train_label, bag_test_img, bag_test_label = bag_sift_Model.main_process()
-    # print('bag_train_img: ', bag_train_img.shape)
-    # print('bag_train_label: ', bag_train_label.shape)
-    # print('bag_test_img: ', bag_test_img.shape)
-    # print('bag_test_label: ', bag_test_label.shape)
+    # if we use the normalize data, the sift_keypoints will be None @@
+    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
+    train_img = np.array(train_img)
+    bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
+    bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
+    print('bag_train_hist: ', bag_train_hist.shape)
+    print('bag_train_label: ', bag_train_label.shape)
+    print('bag_test_hist: ', bag_test_hist.shape)
+    print('bag_test_label: ', bag_test_label.shape)
 
-    # for k in range(1, 22):
-    #     knn_Model = KNN(k)
-    #     predict = knn_Model.knn_process(bag_train_img, bag_train_label, bag_test_img)
-    #     accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
-    #     print('for k={}, accuracy: {}%'.format(k, accuracy*100))
+    for k in range(1, 22):
+        knn_Model = KNN(k)
+        predict = knn_Model.knn_process(bag_train_hist, bag_train_label, bag_test_hist)
+        accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
+        print('for k={}, accuracy: {:.2f}%'.format(k, accuracy*100))
 
 
     """
@@ -249,40 +269,40 @@ if __name__ == "__main__":
 
     Uncomment following code to run.
     """
-    label_dict = {
-        'Bedroom': 0,
-        'Coast': 1, 
-        'Forest': 2, 
-        'Highway': 3, 
-        'Industrial': 4, 
-        'InsideCity': 5, 
-        'Kitchen': 6, 
-        'LivingRoom': 7, 
-        'Mountain': 8, 
-        'Office': 9, 
-        'OpenCountry': 10, 
-        'Store': 11, 
-        'Street': 12, 
-        'Suburb': 13, 
-        'TallBuilding': 14
-    }
-    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
+    # label_dict = {
+    #     'Bedroom': 0,
+    #     'Coast': 1, 
+    #     'Forest': 2, 
+    #     'Highway': 3, 
+    #     'Industrial': 4, 
+    #     'InsideCity': 5, 
+    #     'Kitchen': 6, 
+    #     'LivingRoom': 7, 
+    #     'Mountain': 8, 
+    #     'Office': 9, 
+    #     'OpenCountry': 10, 
+    #     'Store': 11, 
+    #     'Street': 12, 
+    #     'Suburb': 13, 
+    #     'TallBuilding': 14
+    # }
+    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
 
-    # turn string label into int label
-    train_label_int = []
-    for str_label in train_label:
-        train_label_int.append(int(label_dict[str_label]))
+    # # turn string label into int label
+    # train_label_int = []
+    # for str_label in train_label:
+    #     train_label_int.append(int(label_dict[str_label]))
     
-    test_label_int = []
-    for str_label in test_label:
-        test_label_int.append(int(label_dict[str_label]))
+    # test_label_int = []
+    # for str_label in test_label:
+    #     test_label_int.append(int(label_dict[str_label]))
 
-    train_label_int = np.array(train_label_int)
-    test_label_int = np.array(test_label_int)
+    # train_label_int = np.array(train_label_int)
+    # test_label_int = np.array(test_label_int)
     
 
-    bag_sift_Model = BagOfSift(train_img, train_label_int, test_img, train_label_int)
-    bag_train_img, bag_train_label, bag_test_img, bag_test_label = bag_sift_Model.main_process()
+    # bag_sift_Model = BagOfSift(train_img, train_label_int, test_img, train_label_int)
+    # bag_train_img, bag_train_label, bag_test_img, bag_test_label = bag_sift_Model.main_process()
 
-    svm_Model = SVM()
-    predict, accuracy = svm_Model.train_with_linear_kernel(bag_train_label, bag_train_img, bag_test_label, bag_test_img)
+    # svm_Model = SVM()
+    # predict, accuracy = svm_Model.train_with_linear_kernel(bag_train_label, bag_train_img, bag_test_label, bag_test_img)
