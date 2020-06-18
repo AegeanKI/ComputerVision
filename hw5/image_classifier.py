@@ -11,6 +11,7 @@ from libsvm.svmutil import *
 import threading
 import concurrent.futures
 import time
+import math
 
 
 def generate_data(path, resize=False, normalize=True):
@@ -64,14 +65,14 @@ class BagOfSift():
         return descriptors
 
 
-    def build_vocabulary(self, limit=False):
+    def build_vocabulary(self, limit=True):
         # sift
         sift_keypoints = []
-        n_each = 10000 // len(self.train_data)
+        n_each = math.ceil(10000 / len(self.train_data))
         for i in range(len(self.train_data)): # for each img
             descriptors = self.sift_keypoints(self.train_data[i])
             if descriptors is not None:
-                print(f'{i}: descriptors: {descriptors.shape}', end='\r')
+                print(f'descriptors of img {i}: {descriptors.shape}', end='\r')
                 if limit and descriptors.shape[0] > n_each:
                     idx = np.random.choice(descriptors.shape[0], n_each, replace=False)
                     sift_keypoints.append(descriptors[idx])
@@ -80,10 +81,9 @@ class BagOfSift():
         sift_keypoints=np.array(sift_keypoints)
         sift_keypoints=np.concatenate(sift_keypoints, axis=0)
 
-        print(f'descriptors num: {sift_keypoints.shape[0]}')
-        # kmeans
+        print(f'\ndescriptors num: {sift_keypoints.shape[0]}')
         # define K centers, which is K vocabulary
-        k = 100
+        k = 20
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print(f'centers: {centers.shape}')
         return centers
@@ -153,14 +153,12 @@ class BagOfSift():
                 end = (i+1)*len(self.train_data)//max
                 print(f'process start, start: {start}, end: {end}')
                 futures.append(executor.submit(self.calculate_centroid_histogram_thread,voc,self.train_data,start,end))
-                # threads.append(threading.Thread(target=calculate_centroid_histogram_thread, args=(voc,self.train_data[start:end],start,end)))
         
             # wait for process
             for future in futures:
                 train_hist+=future.result()
         
-#         train_hist=np.array(train_hist)
-        print(f'train hist shape: {len(train_hist)}, {len(train_hist[0])}')
+        print(f'\ntrain hist shape: {len(train_hist)}, {len(train_hist[0])}')
         available_train_lable = self.train_label
 
         test_hist = []
@@ -175,20 +173,12 @@ class BagOfSift():
                 end = (i+1)*len(self.test_data)//max
                 print(f'process start, start: {start}, end: {end}')
                 futures.append(executor.submit(self.calculate_centroid_histogram_thread,voc,self.test_data,start,end))
-                # threads.append(threading.Thread(target=calculate_centroid_histogram_thread, args=(voc,self.test_data[start:end],start,end)))
         
             # wait for threads
             for future in futures:
                 test_hist+=future.result()
 
-#         test_hist=np.array(test_hist)
-        # available_test_lable = np.array(available_test_lable)
         available_test_lable = self.test_label
-        # print('train_hist: ', train_hist.shape)
-        # print('train label:', available_train_lable.shape)
-        # print('test_hist: ', test_hist.shape)
-        # print('test label:', available_test_lable.shape)
-        print(f'Bag of SIFT, K = {train_hist.shape[1]}')
         return train_hist, available_train_lable, test_hist, available_test_lable        
 
 
@@ -202,16 +192,10 @@ class KNN():
         return d
 
     def gen_distance_matrix(self, train_data, test_data, Hist):
-        # print("train data shape:",train_data.shape)
-        # print("test data shape:",test_data.shape)
-        distance_matrix = np.zeros((test_data.shape[0], train_data.shape[0])) # (150, 1500)
-        for i in range(test_data.shape[0]):
-            for j in range(train_data.shape[0]):
+        distance_matrix = np.zeros((len(test_data), len(train_data))) # (150, 1500)
+        for i in range(len(test_data)):
+            for j in range(len(train_data)):
                 if Hist:
-                    # print("test:",test_data[i].ravel().astype('float32'))
-                    # print("test_size",len(test_data[i]))
-                    # print("train:",train_data[j])
-                    # print("train_size",len(train_data[j]))
                     distance_matrix[i][j] = cv2.compareHist(test_data[i].flatten().astype('float32'), train_data[j].flatten().astype('float32'),cv2.HISTCMP_CHISQR)
                     # distance_matrix[i][j] = self.chi_sqr(test_data[i],train_data[j])
                 else: 
@@ -225,9 +209,7 @@ class KNN():
             sort_k_idx = np.argsort(distance_matrix[i])
             k_neighbors_label = list(train_label[sort_k_idx[:self.k]])
             # find most frequent label
-            # print("k_neighbors_label: ",k_neighbors_label)
             result = max(set(k_neighbors_label), key = k_neighbors_label.count)
-            # print("result (most label in K): ",result)
             result_label = np.append(result_label, result)
         return result_label
 
@@ -282,11 +264,7 @@ if __name__ == "__main__":
     train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
     bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
     bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
-    print('bag_train_hist: ', bag_train_hist.shape)
-    print('bag_train_label: ', bag_train_label.shape)
-    print('bag_test_hist: ', bag_test_hist.shape)
-    print('bag_test_label: ', bag_test_label.shape)
-    print("time eslaped:{:.2f}s , {:.2f}mins".format(time.time() - start_time,(time.time()-start_time)/60))
+    print("\ntime eslaped: {:.2f}s = {:.2f} mins".format(time.time() - start_time,(time.time()-start_time)/60))
 
     for k in range(1, 22):
         knn_Model = KNN(k)
