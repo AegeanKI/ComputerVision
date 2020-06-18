@@ -67,7 +67,7 @@ class BagOfSift():
         return descriptors
 
 
-    def build_vocabulary(self, limit=True):
+    def build_vocabulary(self, limit=False):
         # sift
         sift_keypoints = []
         n_each = math.ceil(10000 / len(self.train_data))
@@ -85,7 +85,7 @@ class BagOfSift():
 
         print(f'\ndescriptors num: {sift_keypoints.shape[0]}')
         # define K centers, which is K vocabulary
-        k = 100
+        k = 1500
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print(f'centers: {centers.shape}')
         return centers
@@ -210,6 +210,7 @@ class KNN():
 
     def vote_for_k_neighbors(self, distance_matrix, train_label):
         result_label = np.array([])
+        train_label = np.array(train_label)
         for i in range(distance_matrix.shape[0]): # for each test image
             # sort by distance and get the first k neighbors' labels
             sort_k_idx = np.argsort(distance_matrix[i])
