@@ -12,7 +12,8 @@ import threading
 import concurrent.futures
 import time
 import math
-
+from contextlib import redirect_stdout
+import io
 
 def generate_data(path, resize=False, normalize=True):
     dir_list = os.listdir(path)
@@ -84,7 +85,7 @@ class BagOfSift():
 
         print(f'\ndescriptors num: {sift_keypoints.shape[0]}')
         # define K centers, which is K vocabulary
-        k = 20
+        k = 100
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print(f'centers: {centers.shape}')
         return centers
@@ -179,7 +180,7 @@ class BagOfSift():
             for future in futures:
                 test_hist+=future.result()
 
-        print("\nBag of SIFT,K = ",len(train_hist))
+        print("\nBag of SIFT,K = ",len(train_hist[0]))
         available_test_lable = self.test_label
         return train_hist, available_train_lable, test_hist, available_test_lable        
 
@@ -195,6 +196,8 @@ class KNN():
 
     def gen_distance_matrix(self, train_data, test_data, Hist):
         distance_matrix = np.zeros((len(test_data), len(train_data))) # (150, 1500)
+        train_data = np.array(train_data) # for flatten and as type
+        test_data = np.array(test_data) # for flatten and as type
         for i in range(len(test_data)):
             for j in range(len(train_data)):
                 if Hist:
@@ -235,8 +238,13 @@ class SVM():
 
     def train_with_linear_kernel(self, y, x, y_test, x_test):
         param = '-t 0 -h 0'
-        # prob = svm_problem(y,x)
+        # prob = svm_problem(y,x)    # prevent from printing anything
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
         model = svm_train(y,x, param)
+        # turn on the stdout
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
 
         print('test:')
         p_label, p_acc, p_val = svm_predict(y_test, x_test, model)
@@ -265,11 +273,11 @@ if __name__ == "__main__":
     """
 
     # if we use the normalize data, the sift_keypoints will be None @@
-    start_time = time.time()
-    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
-    bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
-    bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
-    print("\ntime eslaped: {:.2f}s = {:.2f} mins".format(time.time() - start_time,(time.time()-start_time)/60))
+    # start_time = time.time()
+    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
+    # bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
+    # bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
+    # print("\ntime eslaped: {:.2f}s = {:.2f} mins".format(time.time() - start_time,(time.time()-start_time)/60))
 
     # for k in range(1, 22):
     #     knn_Model = KNN(k)
@@ -316,7 +324,7 @@ if __name__ == "__main__":
     
     start_time = time.time()
 
-    bag_sift_Model = BagOfSift(train_img, train_label_int, test_img, train_label_int)
+    bag_sift_Model = BagOfSift(train_img, train_label_int, test_img, test_label_int)
     bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
     bag_test_hist = np.array(bag_test_hist).tolist()
     bag_train_hist = np.array(bag_train_hist).tolist()
@@ -326,4 +334,16 @@ if __name__ == "__main__":
     print('bag_test_hist: ', type(bag_test_hist[0][1]),len(bag_test_hist),len(bag_test_hist[0]))
     print("time eslaped:{:.2f}s , {:.2f}mins".format(time.time() - start_time,(time.time()-start_time)/60))
     svm_Model = SVM()
+    # prevent from printing anything
+    # sys.stdout = open(os.devnull, 'w')
     predict, accuracy = svm_Model.train_with_linear_kernel(bag_train_label, bag_train_hist, bag_test_label, bag_test_hist)
+    # turn on the stdout
+    # sys.stdout = sys.__stdout__
+    print('Bag of SIFT, vocabulary lenth:',len(bag_train_hist[0]))
+    print('SVM accuracy: {:.2f}%, mean sqr error:{}'.format(accuracy[0],accuracy[1]))
+    
+    for k in range(1, 22):
+        knn_Model = KNN(k)
+        predict = knn_Model.knn_process(bag_train_hist, bag_train_label, bag_test_hist,Hist=True)
+        accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
+        print('for k={}, accuracy: {:.2f}%'.format(k, accuracy*100))
