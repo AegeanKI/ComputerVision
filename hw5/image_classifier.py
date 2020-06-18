@@ -8,8 +8,6 @@ import glob
 from cyvlfeat.kmeans import kmeans
 from cyvlfeat.sift import dsift
 from libsvm.svmutil import *
-# parallel python
-# import multiprocessing
 import threading
 import concurrent.futures
 import time
@@ -22,25 +20,20 @@ def generate_data(path, resize=False, normalize=True):
     data = []
     label = np.array([])
     for dir in dir_list:
-        print('---start reading img data in {}---'.format(dir))
+        print(f'---start reading img data in {dir}---')
         i = 0
         for img in glob.glob(path + dir + '/*.*'):
-            print('img: ', img)
             img_data = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
             if resize:
                 img_data = cv2.resize(img_data, (resize, resize))
 
             if normalize:
-                # normalize image data
                 mean = np.mean(img_data)
                 var = np.var(img_data)
                 img_data = (img_data - mean) / var
 
             data.append(np.array(img_data))
             label = np.append(label, dir)
-            print('data lenth: ', len(data))
-            print('data shape: ', data[i].shape)
-            print('label shape: ', label.shape)
             i += 1
     return data, label
 
@@ -52,32 +45,6 @@ def load_data(data_dir, resize=False, normalize=True):
     generate_data_path = None
     test_image, test_label = generate_data(testing_path, resize, normalize)
     train_image, train_label = generate_data(training_path, resize, normalize)
-# 
-    # if normalize:
-    #     generated_data_path = os.path.join(os.path.dirname(__file__), 'generated_numpy_data/')
-    # else:
-    #     generated_data_path = os.path.join(os.path.dirname(__file__), 'generated_unnorm_numpy_data/')
-
-    # if os.path.isdir(generated_data_path) == False:
-    #     os.mkdir(generated_data_path)
-
-    # # Read data from training files
-    # if os.path.exists(generated_data_path+'train_image.npy') and os.path.exists(generated_data_path+'train_label.npy'):
-    #     train_image = np.load(generated_data_path+'train_image.npy')
-    #     train_label = np.load(generated_data_path+'train_label.npy')
-    # else:
-    #     train_image, train_label = generate_data(training_path, resize, normalize)
-    #     np.save(generated_data_path+'train_image', train_image)
-    #     np.save(generated_data_path+'train_label', train_label)
-
-    # # Read data from testing files
-    # if os.path.exists(generated_data_path+'test_image.npy') and os.path.exists(generated_data_path+'test_label.npy'):
-    #     test_image = np.load(generated_data_path+'test_image.npy')
-    #     test_label = np.load(generated_data_path+'test_label.npy')
-    # else:
-    #     test_image, test_label = generate_data(testing_path, resize, normalize)
-    #     np.save(generated_data_path+'test_image', test_image)
-    #     np.save(generated_data_path+'test_label', test_label)
 
     return train_image, train_label, test_image, test_label
 
@@ -97,29 +64,28 @@ class BagOfSift():
         return descriptors
 
 
-    def build_vocabulary(self):
+    def build_vocabulary(self, limit=False):
         # sift
         sift_keypoints = []
         n_each = 10000 // len(self.train_data)
         for i in range(len(self.train_data)): # for each img
             descriptors = self.sift_keypoints(self.train_data[i])
             if descriptors is not None:
-                if descriptors.shape[0] > n_each:
+                print(f'{i}: descriptors: {descriptors.shape}', end='\r')
+                if limit and descriptors.shape[0] > n_each:
                     idx = np.random.choice(descriptors.shape[0], n_each, replace=False)
                     sift_keypoints.append(descriptors[idx])
                 else:
-                    print('{}: descriptors: {}'.format(i, descriptors.shape))
                     sift_keypoints.append(descriptors)
         sift_keypoints=np.array(sift_keypoints)
         sift_keypoints=np.concatenate(sift_keypoints, axis=0)
 
-        print("descriptors",sift_keypoints.shape[0])
+        print(f'descriptors num: {sift_keypoints.shape[0]}')
         # kmeans
         # define K centers, which is K vocabulary
         k = 100
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
-        print('centers: ', centers.shape)
-        # print(centers.T)
+        print(f'centers: {centers.shape}')
         return centers
 
     
@@ -140,13 +106,10 @@ class BagOfSift():
                     break
             # record the least distance center
             nearest_center[i] = np.argmin(distance)
-        # print('sift_keypoint: ', sift_keypoints.shape)
-        print('nearest_center shape: ', nearest_center.shape)
 
         # build histogram indicating how many times each cluster was used
         voc_labels = np.arange(voc_centers.shape[0]+1) # voc is 0~(k-1)
         hist, bin_edges = np.histogram(nearest_center, bins=voc_labels)
-        # print('hist shape: ', hist.shape)
         return hist
 
     def calculate_centroid_histogram_thread(self,voc_centers, img_datas, start, end):
@@ -168,13 +131,11 @@ class BagOfSift():
                         break
                 # record the least distance center
                 nearest_center[i] = np.argmin(distance)
-            # print('sift_keypoint: ', sift_keypoints.shape)
-            print(f'idx >> {idx} << nearest_center shape: {nearest_center.shape}')
+            print(f'idx >> {idx} << nearest_center shape: {nearest_center.shape}', end='\r')
 
             # build histogram indicating how many times each cluster was used
             voc_labels = np.arange(voc_centers.shape[0]+1) # voc is 0~(k-1)
             hist, bin_edges = np.histogram(nearest_center, bins=voc_labels)
-            # print('hist shape: ', hist.shape)
             hist_list.append(hist)
         return hist_list
 
@@ -190,7 +151,7 @@ class BagOfSift():
             for i in range(max):
                 start = 0 + i*len(self.train_data)//max
                 end = (i+1)*len(self.train_data)//max
-                print("process start , start:",start,",end:",end)
+                print(f'process start, start: {start}, end: {end}')
                 futures.append(executor.submit(self.calculate_centroid_histogram_thread,voc,self.train_data,start,end))
                 # threads.append(threading.Thread(target=calculate_centroid_histogram_thread, args=(voc,self.train_data[start:end],start,end)))
         
@@ -198,14 +159,8 @@ class BagOfSift():
             for future in futures:
                 train_hist+=future.result()
         
-        # for i in range(len(self.train_data)):
-        #     print("train img >",i," ",end='')
-        #     each_train_hist = self.calculate_centroid_histogram(voc, self.train_data[i])
-        #     if each_train_hist is not None:
-        #         train_hist.append(each_train_hist)
-        #         available_train_lable.append(self.train_label[i])
-        train_hist=np.array(train_hist)
-        print("train hist shape",len(train_hist),",",len(train_hist[0]))
+#         train_hist=np.array(train_hist)
+        print(f'train hist shape: {len(train_hist)}, {len(train_hist[0])}')
         available_train_lable = self.train_label
 
         test_hist = []
@@ -218,28 +173,22 @@ class BagOfSift():
             for i in range(max):
                 start = 0 + i*len(self.test_data)//max
                 end = (i+1)*len(self.test_data)//max
-                print("process start , start:",start,",end:",end)
+                print(f'process start, start: {start}, end: {end}')
                 futures.append(executor.submit(self.calculate_centroid_histogram_thread,voc,self.test_data,start,end))
                 # threads.append(threading.Thread(target=calculate_centroid_histogram_thread, args=(voc,self.test_data[start:end],start,end)))
         
             # wait for threads
             for future in futures:
                 test_hist+=future.result()
-        # for i in range(len(self.test_data)):
-        #     print("test img >",i,end='')
-        #     each_test_hist = self.calculate_centroid_histogram(voc, self.test_data[i])
-        #     if each_test_hist is not None:
-        #         test_hist.append(each_test_hist)
-        #         available_test_lable.append(self.test_label[i])
 
-        test_hist=np.array(test_hist)
+#         test_hist=np.array(test_hist)
         # available_test_lable = np.array(available_test_lable)
         available_test_lable = self.test_label
         # print('train_hist: ', train_hist.shape)
         # print('train label:', available_train_lable.shape)
         # print('test_hist: ', test_hist.shape)
         # print('test label:', available_test_lable.shape)
-        print("Bag of SIFT,K = ",train_hist.shape[1])
+        print(f'Bag of SIFT, K = {train_hist.shape[1]}')
         return train_hist, available_train_lable, test_hist, available_test_lable        
 
 
