@@ -25,7 +25,7 @@ def generate_data(path, resize=False, normalize=True):
         print('---start reading img data in {}---'.format(dir))
         i = 0
         for img in glob.glob(path + dir + '/*.*'):
-            print('img: ', img)
+            print('img: ', img,end='\r')
             img_data = cv2.imread(img, cv2.IMREAD_GRAYSCALE)
             if resize:
                 img_data = cv2.resize(img_data, (resize, resize))
@@ -38,9 +38,9 @@ def generate_data(path, resize=False, normalize=True):
 
             data.append(np.array(img_data))
             label = np.append(label, dir)
-            print('data lenth: ', len(data))
-            print('data shape: ', data[i].shape)
-            print('label shape: ', label.shape)
+            # print('data lenth: ', len(data))
+            # print('data shape: ', data[i].shape)
+            # print('label shape: ', label.shape)
             i += 1
     return data, label
 
@@ -108,7 +108,7 @@ class BagOfSift():
                     idx = np.random.choice(descriptors.shape[0], n_each, replace=False)
                     sift_keypoints.append(descriptors[idx])
                 else:
-                    print('{}: descriptors: {}'.format(i, descriptors.shape))
+                    print('{}: descriptors: {}'.format(i, descriptors.shape),end='\r')
                     sift_keypoints.append(descriptors)
         sift_keypoints=np.array(sift_keypoints)
         sift_keypoints=np.concatenate(sift_keypoints, axis=0)
@@ -116,7 +116,7 @@ class BagOfSift():
         print("descriptors",sift_keypoints.shape[0])
         # kmeans
         # define K centers, which is K vocabulary
-        k = 100
+        k = 20
         centers = kmeans(data=np.float32(sift_keypoints), num_centers=k, initialization="PLUSPLUS")
         print('centers: ', centers.shape)
         # print(centers.T)
@@ -169,7 +169,7 @@ class BagOfSift():
                 # record the least distance center
                 nearest_center[i] = np.argmin(distance)
             # print('sift_keypoint: ', sift_keypoints.shape)
-            print(f'idx >> {idx} << nearest_center shape: {nearest_center.shape}')
+            print(f'idx >> {idx} << nearest_center shape: {nearest_center.shape}',end='\r')
 
             # build histogram indicating how many times each cluster was used
             voc_labels = np.arange(voc_centers.shape[0]+1) # voc is 0~(k-1)
@@ -198,13 +198,6 @@ class BagOfSift():
             for future in futures:
                 train_hist+=future.result()
         
-        # for i in range(len(self.train_data)):
-        #     print("train img >",i," ",end='')
-        #     each_train_hist = self.calculate_centroid_histogram(voc, self.train_data[i])
-        #     if each_train_hist is not None:
-        #         train_hist.append(each_train_hist)
-        #         available_train_lable.append(self.train_label[i])
-        train_hist=np.array(train_hist)
         print("train hist shape",len(train_hist),",",len(train_hist[0]))
         available_train_lable = self.train_label
 
@@ -225,21 +218,12 @@ class BagOfSift():
             # wait for threads
             for future in futures:
                 test_hist+=future.result()
-        # for i in range(len(self.test_data)):
-        #     print("test img >",i,end='')
-        #     each_test_hist = self.calculate_centroid_histogram(voc, self.test_data[i])
-        #     if each_test_hist is not None:
-        #         test_hist.append(each_test_hist)
-        #         available_test_lable.append(self.test_label[i])
-
-        test_hist=np.array(test_hist)
-        # available_test_lable = np.array(available_test_lable)
         available_test_lable = self.test_label
         # print('train_hist: ', train_hist.shape)
         # print('train label:', available_train_lable.shape)
         # print('test_hist: ', test_hist.shape)
         # print('test label:', available_test_lable.shape)
-        print("Bag of SIFT,K = ",train_hist.shape[1])
+        print("\nBag of SIFT,K = ",len(train_hist))
         return train_hist, available_train_lable, test_hist, available_test_lable        
 
 
@@ -259,10 +243,7 @@ class KNN():
         for i in range(test_data.shape[0]):
             for j in range(train_data.shape[0]):
                 if Hist:
-                    # print("test:",test_data[i].ravel().astype('float32'))
-                    # print("test_size",len(test_data[i]))
-                    # print("train:",train_data[j])
-                    # print("train_size",len(train_data[j]))
+                    # cv2 compare hist only eats float32
                     distance_matrix[i][j] = cv2.compareHist(test_data[i].flatten().astype('float32'), train_data[j].flatten().astype('float32'),cv2.HISTCMP_CHISQR)
                     # distance_matrix[i][j] = self.chi_sqr(test_data[i],train_data[j])
                 else: 
@@ -301,7 +282,8 @@ class SVM():
 
     def train_with_linear_kernel(self, y, x, y_test, x_test):
         param = '-t 0 -h 0'
-        model = svm_train(y, x, param)
+        # prob = svm_problem(y,x)
+        model = svm_train(y,x, param)
 
         print('test:')
         p_label, p_acc, p_val = svm_predict(y_test, x_test, model)
@@ -328,22 +310,22 @@ if __name__ == "__main__":
 
     Uncomment following code to run.
     """
-    # if we use the normalize data, the sift_keypoints will be None @@
-    start_time = time.time()
-    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
-    bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
-    bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
-    print('bag_train_hist: ', bag_train_hist.shape)
-    print('bag_train_label: ', bag_train_label.shape)
-    print('bag_test_hist: ', bag_test_hist.shape)
-    print('bag_test_label: ', bag_test_label.shape)
-    print("time eslaped:{:.2f}s , {:.2f}mins".format(time.time() - start_time,(time.time()-start_time)/60))
+    # # if we use the normalize data, the sift_keypoints will be None @@
+    # start_time = time.time()
+    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
+    # bag_sift_Model = BagOfSift(train_img, train_label, test_img, test_label)
+    # bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
+    # print('bag_train_hist: ', len(bag_train_hist))
+    # print('bag_train_label: ', bag_train_label.shape)
+    # print('bag_test_hist: ', len(bag_test_hist))
+    # print('bag_test_label: ', bag_test_label.shape)
+    # print("time eslaped:{:.2f}s , {:.2f}mins".format(time.time() - start_time,(time.time()-start_time)/60))
 
-    for k in range(1, 22):
-        knn_Model = KNN(k)
-        predict = knn_Model.knn_process(bag_train_hist, bag_train_label, bag_test_hist,Hist=True)
-        accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
-        print('for k={}, accuracy: {:.2f}%'.format(k, accuracy*100))
+    # for k in range(1, 22):
+    #     knn_Model = KNN(k)
+    #     predict = knn_Model.knn_process(bag_train_hist, bag_train_label, bag_test_hist,Hist=True)
+    #     accuracy = knn_Model.calculate_accuracy(predict, bag_test_label)
+    #     print('for k={}, accuracy: {:.2f}%'.format(k, accuracy*100))
 
 
     """
@@ -351,40 +333,47 @@ if __name__ == "__main__":
 
     Uncomment following code to run.
     """
-    # label_dict = {
-    #     'Bedroom': 0,
-    #     'Coast': 1, 
-    #     'Forest': 2, 
-    #     'Highway': 3, 
-    #     'Industrial': 4, 
-    #     'InsideCity': 5, 
-    #     'Kitchen': 6, 
-    #     'LivingRoom': 7, 
-    #     'Mountain': 8, 
-    #     'Office': 9, 
-    #     'OpenCountry': 10, 
-    #     'Store': 11, 
-    #     'Street': 12, 
-    #     'Suburb': 13, 
-    #     'TallBuilding': 14
-    # }
-    # train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
+    label_dict = {
+        'Bedroom': 0,
+        'Coast': 1, 
+        'Forest': 2, 
+        'Highway': 3, 
+        'Industrial': 4, 
+        'InsideCity': 5, 
+        'Kitchen': 6, 
+        'LivingRoom': 7, 
+        'Mountain': 8, 
+        'Office': 9, 
+        'OpenCountry': 10, 
+        'Store': 11, 
+        'Street': 12, 
+        'Suburb': 13, 
+        'TallBuilding': 14
+    }
+    train_img, train_label, test_img, test_label = load_data(os.path.join(os.path.dirname(__file__), 'hw5_data/'), resize=False, normalize=False)
 
-    # # turn string label into int label
-    # train_label_int = []
-    # for str_label in train_label:
-    #     train_label_int.append(int(label_dict[str_label]))
+    # turn string label into int label
+    train_label_int = []
+    for str_label in train_label:
+        train_label_int.append(int(label_dict[str_label]))
     
-    # test_label_int = []
-    # for str_label in test_label:
-    #     test_label_int.append(int(label_dict[str_label]))
+    test_label_int = []
+    for str_label in test_label:
+        test_label_int.append(int(label_dict[str_label]))
 
-    # train_label_int = np.array(train_label_int)
-    # test_label_int = np.array(test_label_int)
+    train_label_int = list(train_label_int)
+    test_label_int = list(test_label_int)
     
+    start_time = time.time()
 
-    # bag_sift_Model = BagOfSift(train_img, train_label_int, test_img, train_label_int)
-    # bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
-
-    # svm_Model = SVM()
-    # predict, accuracy = svm_Model.train_with_linear_kernel(bag_train_label, bag_train_hist, bag_test_label, bag_test_hist)
+    bag_sift_Model = BagOfSift(train_img, train_label_int, test_img, train_label_int)
+    bag_train_hist, bag_train_label, bag_test_hist, bag_test_label = bag_sift_Model.main_process()
+    bag_test_hist = np.array(bag_test_hist).tolist()
+    bag_train_hist = np.array(bag_train_hist).tolist()
+    print('bag_train_label: ',type(bag_train_label), len(bag_train_label))
+    print('bag_train_hist: ',type(bag_train_hist[0]), len(bag_train_hist),len(bag_train_hist[0]))
+    print('bag_test_label: ',type(bag_test_label), len(bag_test_label))
+    print('bag_test_hist: ', type(bag_test_hist[0][1]),len(bag_test_hist),len(bag_test_hist[0]))
+    print("time eslaped:{:.2f}s , {:.2f}mins".format(time.time() - start_time,(time.time()-start_time)/60))
+    svm_Model = SVM()
+    predict, accuracy = svm_Model.train_with_linear_kernel(bag_train_label, bag_train_hist, bag_test_label, bag_test_hist)
